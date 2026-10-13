@@ -98,18 +98,35 @@ function nextRung(bpm: number): number {
   return bpm + Math.max(2, Math.round(bpm * 0.08))
 }
 
-export function starsFor(score: PerformanceScore, bpm: number, targetBpm: number): Star {
+export interface StarThresholds {
+  targetBpm: number
+  /** The slowest tempo the exercise is meant to be practised at. */
+  floorBpm: number
+}
+
+/**
+ * The first star is earned at the exercise's own floor tempo, not at a fixed
+ * fraction of its target.
+ *
+ * A fixed fraction and the floor are the same decision written twice, and they
+ * disagreed: the floor defaulted to 55% of target while one star needed 60%, so
+ * a beginner's first take - the ladder starts them at the floor - scored zero
+ * stars however well they played it. That reads as a failure everywhere
+ * downstream: no star means a review lapse, and the lesson never unlocks.
+ */
+export function starsFor(score: PerformanceScore, bpm: number, thresholds: StarThresholds): Star {
+  const { targetBpm, floorBpm } = thresholds
   const ratio = bpm / targetBpm
   if (score.overall >= 95 && ratio >= 1) return 3
   if (score.overall >= 88 && ratio >= 0.85) return 2
-  if (score.overall >= 75 && ratio >= 0.6) return 1
+  if (score.overall >= 75 && bpm >= floorBpm) return 1
   return 0
 }
 
 export function starRequirementText(star: Star): string {
   switch (star) {
     case 1:
-      return '75% at 60% of target tempo'
+      return '75% accurate at the starting tempo'
     case 2:
       return '88% at 85% of target tempo'
     case 3:

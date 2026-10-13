@@ -25,6 +25,8 @@ export interface Attempt {
   stars: Star
   /** Seconds of actual playing, excluding the count-in. */
   durationSeconds: number
+  /** The player stopped this take early; it earns nothing and schedules nothing. */
+  abandoned: boolean
   /**
    * A probe is played with the feedback display off, and is the honest measure
    * of what has been learned. Accuracy during guided practice is inflated by

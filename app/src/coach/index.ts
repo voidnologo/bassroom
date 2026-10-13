@@ -11,15 +11,38 @@ import type { CoachFeedback, CoachProvider, CoachRequest } from './types'
  * because an API was down does not come back.
  */
 
+export interface CoachStatus {
+  /** Populated when a model attempt failed and the rules answered instead. */
+  lastModelError: string | null
+}
+
 export class CoachService {
   private readonly heuristic = new HeuristicCoach()
   private readonly model = new LanguageModelCoach()
+  private readonly listeners = new Set<(status: CoachStatus) => void>()
+  private modelError: string | null = null
 
   /** Set false to stay on the built-in coach regardless of configuration. */
   public useModelWhenAvailable = true
 
-  /** Populated when a model attempt failed, for display in settings. */
-  public lastModelError: string | null = null
+  get lastModelError(): string | null {
+    return this.modelError
+  }
+
+  /**
+   * Notified when a model call fails. The UI cannot observe a plain field, so
+   * a failure read during render would only ever appear by coincidence.
+   */
+  onChange(listener: (status: CoachStatus) => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+
+  private setModelError(message: string | null): void {
+    if (this.modelError === message) return
+    this.modelError = message
+    for (const listener of [...this.listeners]) listener({ lastModelError: message })
+  }
 
   async describeActiveProvider(): Promise<string> {
     const provider = await this.pick()
@@ -32,10 +55,10 @@ export class CoachService {
 
     try {
       const feedback = await provider.analyze(request)
-      this.lastModelError = null
+      this.setModelError(null)
       return feedback
     } catch (error) {
-      this.lastModelError = error instanceof Error ? error.message : String(error)
+      this.setModelError(error instanceof Error ? error.message : String(error))
       return this.heuristic.analyze(request)
     }
   }

@@ -301,15 +301,54 @@ describe('parseFeedback', () => {
     ['not an object', 'a string'],
     ['a missing headline', { ...valid, headline: undefined }],
     ['an empty headline', { ...valid, headline: '   ' }],
-    [
-      'an unknown severity',
-      { ...valid, observations: [{ ...valid.observations[0], severity: 'urgent' }] },
-    ],
+    [{ ...valid, observations: [{ ...valid.observations[0], severity: 'urgent' }] }],
     ['an unknown action kind', { ...valid, nextAction: { kind: 'panic', detail: 'x' } }],
     ['a missing action', { ...valid, nextAction: undefined }],
     ['an unknown confidence', { ...valid, confidence: 'certain' }],
   ])('rejects %s rather than rendering it', (_name, value) => {
     expect(() => parseFeedback(value, 'model')).toThrow()
+  })
+
+  it('drops a malformed observation but keeps the rest of the answer', () => {
+    // One bad field in the middle of a list should not discard a good headline
+    // and a good next action.
+    const mixed = {
+      ...valid,
+      observations: [
+        valid.observations[0],
+        { ...valid.observations[0], severity: 'urgent' },
+        { ...valid.observations[0], statement: '' },
+      ],
+    }
+    const parsed = parseFeedback(mixed, 'model')
+    expect(parsed.observations).toHaveLength(1)
+    expect(parsed.headline).toBe('Solid take.')
+  })
+
+  it('fills in a missing observation id rather than discarding the observation', () => {
+    const noId = { ...valid, observations: [{ ...valid.observations[0], id: undefined }] }
+    expect(parseFeedback(noId, 'model').observations).toHaveLength(1)
+  })
+
+  it.each([
+    { name: 'a tempo no instrument plays', bpm: 99999 },
+    { name: 'a negative tempo', bpm: -5 },
+    { name: 'zero', bpm: 0 },
+  ])('ignores $name', ({ bpm }) => {
+    const odd = { ...valid, nextAction: { kind: 'slow-down', detail: 'Slower.', bpm } }
+    expect(parseFeedback(odd, 'model').nextAction.bpm).toBeUndefined()
+  })
+
+  it('ignores a bar range that runs backwards or starts before bar one', () => {
+    const backwards = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop.', bars: [9, 2] } }
+    expect(parseFeedback(backwards, 'model').nextAction.bars).toBeUndefined()
+    const zero = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop.', bars: [0, 2] } }
+    expect(parseFeedback(zero, 'model').nextAction.bars).toBeUndefined()
+  })
+
+  it('clips text long enough to break the layout', () => {
+    const essay = { ...valid, headline: 'x'.repeat(5000) }
+    expect(parseFeedback(essay, 'model').headline.length).toBeLessThan(500)
   })
 
   it('ignores a malformed bar range instead of failing the whole response', () => {

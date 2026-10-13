@@ -44,7 +44,8 @@ export function scheduleNextReview(state: ReviewState, stars: Star, today: Date)
 function advance(state: ReviewState, stars: Star, today: Date): ReviewState {
   const streak = state.streak + 1
   const ease = adjustEase(state.ease, stars)
-  const intervalDays = nextInterval(streak, state.intervalDays, ease)
+  const relearning = state.lapses > 0 && state.intervalDays > FIRST_INTERVAL_DAYS
+  const intervalDays = nextInterval(streak, state.intervalDays, ease, relearning)
   return {
     ease,
     intervalDays,
@@ -65,9 +66,19 @@ function lapse(state: ReviewState, today: Date): ReviewState {
   }
 }
 
-function nextInterval(streak: number, previousDays: number, ease: number): number {
-  if (streak === 1) return FIRST_INTERVAL_DAYS
-  if (streak === 2) return SECOND_INTERVAL_DAYS
+/**
+ * `relearning` is what makes a lapse a setback rather than a reset. Without it
+ * the halved interval survives exactly one review and the next success drops
+ * back to day one - which is the full reset this module says it avoids.
+ */
+function nextInterval(
+  streak: number,
+  previousDays: number,
+  ease: number,
+  relearning: boolean,
+): number {
+  if (streak === 1) return relearning ? previousDays : FIRST_INTERVAL_DAYS
+  if (streak === 2 && !relearning) return SECOND_INTERVAL_DAYS
   return Math.min(MAXIMUM_INTERVAL_DAYS, Math.round(previousDays * ease))
 }
 

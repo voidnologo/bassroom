@@ -100,6 +100,14 @@ export interface AttemptInput {
   now: Date
   /** True when the take was played with the feedback display off. */
   isProbe?: boolean
+  /**
+   * True when the player stopped the take early. Recorded for the history but
+   * excluded from XP, the streak, the tempo ladder and the review schedule: a
+   * take that was abandoned two seconds in is not evidence of anything, and
+   * treating it as one both corrupts the schedule and makes the streak
+   * maintainable with a daily two-second tap.
+   */
+  abandoned?: boolean
   selfEstimate?: SelfEstimate | null
 }
 
@@ -109,7 +117,8 @@ export interface AttemptInput {
  */
 export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): AttemptResult {
   const { exercise, score, bpm, durationSeconds, now } = input
-  const stars = starsFor(score, bpm, exercise.targetBpm)
+  const abandoned = input.abandoned ?? false
+  const stars = starsFor(score, bpm, exercise)
   const selfEstimate = input.selfEstimate ?? null
   const attempt: Attempt = {
     exerciseId: exercise.id,
@@ -119,13 +128,14 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     score,
     stars,
     durationSeconds,
+    abandoned,
     isProbe: input.isProbe ?? false,
     selfEstimate,
     estimateWasRight: selfEstimate === null ? null : selfEstimate === actualTiming(score),
   }
 
   const previous = progressFor(snapshot, exercise, now)
-  const ladder = advanceLadder(previous.ladder, score)
+  const ladder = abandoned ? holdLadder(previous) : advanceLadder(previous.ladder, score)
   const updatedExercise: ExerciseProgress = {
     ...previous,
     attempts: previous.attempts + 1,
@@ -133,13 +143,15 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     bestScore: Math.max(previous.bestScore, score.overall),
     bestBpm: Math.max(previous.bestBpm, bpm),
     ladder: ladder.next,
-    review: scheduleNextReview(previous.review, stars, now),
+    review: abandoned ? previous.review : scheduleNextReview(previous.review, stars, now),
     lastPracticedAt: attempt.completedAt,
   }
 
   const daysSinceLastPractice = gapBeforeToday(snapshot.profile, now)
-  const streakUpdate = recordPractice(snapshot.profile.streak, now)
-  const xp = xpForAttempt(attempt, streakUpdate.outcome !== 'already-counted')
+  const streakUpdate = abandoned
+    ? { streak: snapshot.profile.streak, outcome: 'already-counted' as const }
+    : recordPractice(snapshot.profile.streak, now)
+  const xp = abandoned ? NO_XP : xpForAttempt(attempt, streakUpdate.outcome !== 'already-counted')
 
   const history = [attempt, ...snapshot.history].slice(0, HISTORY_LIMIT)
   const exercises = { ...snapshot.exercises, [exercise.id]: updatedExercise }
@@ -186,6 +198,24 @@ export function actualTiming(score: PerformanceScore): SelfEstimate {
   if (score.meanTimingErrorMs > PERCEPTIBLE_MS) return 'behind'
   if (score.meanTimingErrorMs < -PERCEPTIBLE_MS) return 'ahead'
   return 'on-it'
+}
+
+const NO_XP: XpBreakdown = {
+  base: 0,
+  scoreBonus: 0,
+  tempoBonus: 0,
+  starBonus: 0,
+  firstOfDayBonus: 0,
+  total: 0,
+}
+
+/** An abandoned take leaves the ladder exactly where it was. */
+function holdLadder(previous: ExerciseProgress): LadderOutcome {
+  return {
+    next: previous.ladder,
+    change: 'held',
+    message: 'Stopped early. Nothing recorded against this one.',
+  }
 }
 
 function gapBeforeToday(profile: LearnerProfile, now: Date): number | null {

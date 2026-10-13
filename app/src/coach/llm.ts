@@ -52,7 +52,10 @@ export class LanguageModelCoach implements CoachProvider {
     })
 
     if (!response.ok) {
-      throw new Error(`Coach server returned ${response.status}`)
+      // A failure means the next take should probe again rather than waiting
+      // out the full timeout on a server that has gone away.
+      this.availability = null
+      throw new Error(describeStatus(response.status))
     }
     return parseFeedback(await response.json(), this.id)
   }
@@ -61,12 +64,22 @@ export class LanguageModelCoach implements CoachProvider {
     try {
       const response = await fetchWithTimeout('/api/coach/status', { method: 'GET' }, 3000)
       if (!response.ok) return false
+      // A static server answers every path with the app's HTML, so a 200 that
+      // is not JSON means the coach server is not reachable at all.
       const body: unknown = await response.json()
       return isRecord(body) && body.ready === true
     } catch {
       return false
     }
   }
+}
+
+/** Say what actually went wrong; a bare 502 reads the same for every cause. */
+function describeStatus(status: number): string {
+  if (status === 429) return 'The model is rate limited. The built-in coach answered instead.'
+  if (status === 503) return 'No API key is configured, so the built-in coach answered.'
+  if (status === 401 || status === 403) return 'The API key was rejected.'
+  return `The coach server returned ${status}.`
 }
 
 async function fetchWithTimeout(
@@ -87,10 +100,12 @@ async function fetchWithTimeout(
 export function parseFeedback(value: unknown, providerId: string): CoachFeedback {
   if (!isRecord(value)) throw new Error('Coach response was not an object')
 
-  const headline = asNonEmptyString(value.headline, 'headline')
+  const headline = clip(asNonEmptyString(value.headline, 'headline'))
   const confidence = asMember(value.confidence, CONFIDENCES, 'confidence')
+  // A malformed observation is dropped rather than throwing: one missing field
+  // in the second of three should not discard a good headline and next action.
   const observations = Array.isArray(value.observations)
-    ? value.observations.slice(0, 3).map(parseObservation)
+    ? value.observations.slice(0, 3).map(parseObservation).filter(isObservation)
     : []
 
   return {
@@ -102,24 +117,43 @@ export function parseFeedback(value: unknown, providerId: string): CoachFeedback
   }
 }
 
-function parseObservation(value: unknown): Observation {
-  if (!isRecord(value)) throw new Error('Observation was not an object')
+function parseObservation(value: unknown): Observation | null {
+  if (!isRecord(value)) return null
+  if (typeof value.statement !== 'string' || value.statement.trim() === '') return null
+  if (typeof value.severity !== 'string' || !SEVERITIES.has(value.severity)) return null
   return {
-    id: asNonEmptyString(value.id, 'observation id'),
-    severity: asMember(value.severity, SEVERITIES, 'severity') as Observation['severity'],
-    statement: asNonEmptyString(value.statement, 'observation statement'),
-    evidence: typeof value.evidence === 'string' ? value.evidence : '',
+    id: typeof value.id === 'string' && value.id.trim() !== '' ? value.id : 'observation',
+    severity: value.severity as Observation['severity'],
+    statement: clip(value.statement),
+    evidence: typeof value.evidence === 'string' ? clip(value.evidence) : '',
   }
+}
+
+function isObservation(value: Observation | null): value is Observation {
+  return value !== null
+}
+
+/** A model that returns an essay should not be able to break the layout. */
+const MAX_TEXT_LENGTH = 400
+
+function clip(text: string): string {
+  return text.length <= MAX_TEXT_LENGTH ? text : `${text.slice(0, MAX_TEXT_LENGTH - 1)}…`
 }
 
 function parseNextAction(value: unknown): NextAction {
   if (!isRecord(value)) throw new Error('nextAction was not an object')
   const action: NextAction = {
     kind: asMember(value.kind, ACTION_KINDS, 'nextAction kind') as NextAction['kind'],
-    detail: asNonEmptyString(value.detail, 'nextAction detail'),
+    detail: clip(asNonEmptyString(value.detail, 'nextAction detail')),
   }
-  if (typeof value.bpm === 'number' && Number.isFinite(value.bpm)) action.bpm = value.bpm
-  if (isBarRange(value.bars)) action.bars = [value.bars[0], value.bars[1]]
+  // Bounds a model's numbers to something an instrument can do, rather than
+  // handing the UI a tempo of 99999 or a bar index of -5.
+  if (typeof value.bpm === 'number' && value.bpm >= 20 && value.bpm <= 300) {
+    action.bpm = Math.round(value.bpm)
+  }
+  if (isBarRange(value.bars) && value.bars[0] >= 1 && value.bars[1] >= value.bars[0]) {
+    action.bars = [Math.round(value.bars[0]), Math.round(value.bars[1])]
+  }
   return action
 }
 

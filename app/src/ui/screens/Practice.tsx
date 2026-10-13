@@ -307,7 +307,7 @@ function Result({
         <h3 style={{ margin: 0 }}>That take</h3>
         <div className="row" style={{ gap: 14 }}>
           {attempt.attempt.isProbe && <Pill tone="good">retention check</Pill>}
-          <Stars value={starsFor(score, bpm, exercise.targetBpm)} />
+          <Stars value={starsFor(score, bpm, exercise)} />
           <Pill tone="good">+{attempt.xp.total} XP</Pill>
           {attempt.newBadges.map((badge) => (
             <Pill key={badge} tone="warn">

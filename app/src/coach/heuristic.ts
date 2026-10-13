@@ -192,21 +192,36 @@ function secondHalfDecay({ telemetry }: CoachRequest): Observation | null {
   }
 }
 
+/**
+ * Keyed on where the note sits in the music, not on its index in the judgment
+ * list. That list includes extra attacks, so one stray double-pluck shifts
+ * every later index and the same musical note is counted as two different
+ * places.
+ */
+function placeKey(note: NoteTelemetry): string {
+  return `${note.bar}:${note.beatInBar}`
+}
+
+function countTroubleByPlace(takes: TakeTelemetry[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const take of takes) {
+    const missed = take.notes.filter(
+      (note) => note.targetMidi >= 0 && note.verdict !== 'perfect' && note.verdict !== 'good',
+    )
+    for (const note of missed) counts.set(placeKey(note), (counts.get(placeKey(note)) ?? 0) + 1)
+  }
+  return counts
+}
+
 function recurringTroubleSpot({ telemetry, recentTakes }: CoachRequest): Observation | null {
   if (recentTakes.length < 2) return null
   const takes = [telemetry, ...recentTakes].slice(0, 4)
-  const counts = new Map<number, number>()
-  for (const take of takes) {
-    for (const note of take.notes) {
-      if (note.verdict === 'perfect' || note.verdict === 'good') continue
-      counts.set(note.index, (counts.get(note.index) ?? 0) + 1)
-    }
-  }
+  const counts = countTroubleByPlace(takes)
 
   const worst = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
   if (!worst || worst[1] / takes.length < RECURRENCE_THRESHOLD) return null
 
-  const note = telemetry.notes.find((candidate) => candidate.index === worst[0])
+  const note = telemetry.notes.find((candidate) => placeKey(candidate) === worst[0])
   if (!note) return null
   return {
     id: 'recurring-spot',
@@ -220,7 +235,11 @@ function recurringTroubleSpot({ telemetry, recentTakes }: CoachRequest): Observa
 
 function headlineFor(request: CoachRequest, observations: Observation[]): string {
   const { overall } = request.telemetry.score
-  if (overall >= 95) return 'Clean. That is what it is meant to sound like.'
+  // The headline must not contradict what is printed directly beneath it, so a
+  // high score only reads as clean when nothing was actually found.
+  if (overall >= 95 && observations.length === 0) {
+    return 'Clean. That is what it is meant to sound like.'
+  }
   if (observations.length === 0 && overall >= PROMOTION_SCORE) return 'Solid take. Nothing to fix.'
   if (observations.length === 0)
     return 'Nothing specific went wrong. More repetitions at this tempo.'
@@ -231,11 +250,13 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
   const { telemetry } = request
   const recurring = observations.find((observation) => observation.id === 'recurring-spot')
   if (recurring) {
-    const note = worstNote(telemetry)
+    // Reuse the bar the observation named. Recomputing it found the first bad
+    // note of this take instead, so the two lines could point at different bars.
+    const bar = barFrom(recurring.evidence) ?? worstNote(telemetry)?.bar ?? 1
     return {
       kind: 'isolate',
-      detail: `Loop bar ${note?.bar ?? 1} on its own until it stops being the hard part.`,
-      bars: note ? [note.bar, note.bar] : undefined,
+      detail: `Loop bar ${bar} on its own until it stops being the hard part.`,
+      bars: [bar, bar],
     }
   }
 
@@ -259,6 +280,12 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
   }
 
   return { kind: 'repeat', detail: 'Run it again at this tempo. One thing at a time.' }
+}
+
+/** Pull the bar number back out of the evidence line that named it. */
+function barFrom(evidence: string): number | null {
+  const match = /bar (\d+)/.exec(evidence)
+  return match ? Number(match[1]) : null
 }
 
 function worstNote(telemetry: TakeTelemetry): NoteTelemetry | undefined {

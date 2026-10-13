@@ -87,8 +87,10 @@ export class OnsetDetector {
     block: Float32Array,
     blockStartTime: number,
     onOnset: (onset: DetectedOnset) => void,
+    /** How much of `block` is valid; defaults to all of it. */
+    length = block.length,
   ): void {
-    for (let i = 0; i < block.length; i++) {
+    for (let i = 0; i < length; i++) {
       const time = blockStartTime + i * this.sampleInterval
       const settling = time - this.lastOnsetTime <= this.refractorySeconds
       this.advanceEnvelopes(block[i] * block[i], settling)

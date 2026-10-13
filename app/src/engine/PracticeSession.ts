@@ -285,7 +285,9 @@ export class PracticeSession {
     if (!exercise || this.phase === 'finished') return
 
     // Anything still pending is graded on what was heard, rather than dropped.
-    this.resolvePendingOnsets(this.input.now() + 1)
+    // Infinity rather than a clock reading: the engine may already have stopped,
+    // and AudioEngine.now() returns 0 once its context is gone.
+    this.resolvePendingOnsets(Number.POSITIVE_INFINITY)
 
     const judgments = judgePerformance(this.targets, this.played, this.bpm)
     const result: SessionResult = {

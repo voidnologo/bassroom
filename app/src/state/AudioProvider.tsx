@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AudioEngine } from '../audio/AudioEngine'
 import type { AudioEngineApi, EngineState, InputDeviceInfo } from '../audio/contracts'
 import { CoachService } from '../coach'
@@ -15,7 +15,12 @@ interface AudioContextValue {
   coach: CoachService
   state: EngineState
   devices: InputDeviceInfo[]
+  /** Human-readable input failure, or null. */
   error: string | null
+  /** Set when the browser ignored a getUserMedia constraint. */
+  processingWarning: string | null
+  /** Set when a model-backed coach call failed and the rules answered instead. */
+  coachError: string | null
   start: (deviceId?: string) => Promise<void>
   stop: () => Promise<void>
   refreshDevices: () => Promise<void>
@@ -46,8 +51,11 @@ export function AudioProvider({
   const [state, setState] = useState<EngineState>(engine.getState())
   const [devices, setDevices] = useState<InputDeviceInfo[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [processingWarning, setProcessingWarning] = useState<string | null>(null)
+  const [coachError, setCoachError] = useState<string | null>(coach.lastModelError)
 
   useEffect(() => engine.onStateChange(setState), [engine])
+  useEffect(() => coach.onChange((status) => setCoachError(status.lastModelError)), [coach])
 
   // Stopping on unmount releases the input device; a browser that keeps it open
   // shows a recording indicator long after the app is gone.
@@ -57,37 +65,65 @@ export function AudioProvider({
     }
   }, [engine])
 
-  const value = useMemo<AudioContextValue>(() => {
-    const refreshDevices = async (): Promise<void> => {
+  /**
+   * Identity depends only on the engine. It used to be rebuilt whenever the
+   * device list changed, which the setup screen's effect depended on - so
+   * refreshing devices requested them again, forever.
+   */
+  const refreshDevices = useCallback(async (): Promise<void> => {
+    try {
+      const found = await engine.listInputDevices()
+      setDevices((current) => (sameDevices(current, found) ? current : found))
+    } catch (cause) {
+      setError(messageOf(cause))
+    }
+  }, [engine])
+
+  const start = useCallback(
+    async (deviceId?: string): Promise<void> => {
+      setError(null)
       try {
-        setDevices(await engine.listInputDevices())
+        await engine.requestPermission()
+        await engine.start(deviceId)
+        setProcessingWarning(engine.processingWarning)
+        await refreshDevices()
       } catch (cause) {
         setError(messageOf(cause))
       }
-    }
+    },
+    [engine, refreshDevices],
+  )
 
-    return {
+  const stop = useCallback(async (): Promise<void> => {
+    await engine.stop()
+  }, [engine])
+
+  const value = useMemo<AudioContextValue>(
+    () => ({
       engine,
       coach,
       state,
       devices,
       error,
+      processingWarning,
+      coachError,
+      start,
+      stop,
       refreshDevices,
-      start: async (deviceId) => {
-        setError(null)
-        try {
-          await engine.requestPermission()
-          await engine.start(deviceId)
-          await refreshDevices()
-        } catch (cause) {
-          setError(messageOf(cause))
-        }
-      },
-      stop: async () => {
-        await engine.stop()
-      },
-    }
-  }, [engine, coach, state, devices, error])
+    }),
+    [
+      engine,
+      coach,
+      state,
+      devices,
+      error,
+      processingWarning,
+      coachError,
+      start,
+      stop,
+      refreshDevices,
+    ],
+  )
 
   return <Context.Provider value={value}>{children}</Context.Provider>
 }
@@ -96,6 +132,14 @@ export function useAudio(): AudioContextValue {
   const value = useContext(Context)
   if (!value) throw new Error('useAudio must be used inside an AudioProvider')
   return value
+}
+
+/** Devices are re-fetched as fresh objects, so compare by what identifies them. */
+function sameDevices(a: InputDeviceInfo[], b: InputDeviceInfo[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every(
+    (device, index) => device.deviceId === b[index].deviceId && device.label === b[index].label,
+  )
 }
 
 function messageOf(cause: unknown): string {

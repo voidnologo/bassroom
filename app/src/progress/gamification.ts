@@ -1,6 +1,6 @@
 import type { Star } from '../engine/tempoLadder'
 import type { Attempt, Badge, BadgeId, LearnerProfile, StreakState } from './types'
-import { daysBetween, toIsoDate } from './srs'
+import { addDays, daysBetween, toIsoDate } from './srs'
 
 /**
  * Experience, levels, streaks, and badges.
@@ -20,9 +20,8 @@ const MAX_FREEZES = 2
 const DAYS_PER_FREEZE = 7
 
 /**
- * Levels widen as they go: 100 XP for the second level, roughly 2,500 for the
- * tenth. Early levels arrive during the first session, which is when a beginner
- * most needs evidence that anything is happening.
+ * Levels widen as they go, and the first few arrive inside the first session,
+ * which is when a beginner most needs evidence that anything is happening.
  */
 export function levelFor(xp: number): number {
   return Math.floor(Math.sqrt(Math.max(0, xp) / 25)) + 1
@@ -135,12 +134,15 @@ function extend(streak: StreakState, current: number, todayIso: string): StreakS
 function replenishFreezes(streak: StreakState, today: Date): StreakState {
   const since = streak.freezesRefreshedOn
   if (since === null) return { ...streak, freezesRefreshedOn: toIsoDate(today) }
-  const earned = Math.floor(daysBetween(since, today) / DAYS_PER_FREEZE)
+  const elapsed = daysBetween(since, today)
+  const earned = Math.floor(elapsed / DAYS_PER_FREEZE)
   if (earned <= 0) return streak
   return {
     ...streak,
     freezes: Math.min(MAX_FREEZES, streak.freezes + earned),
-    freezesRefreshedOn: toIsoDate(today),
+    // Advance by what was spent, not to today, so the remaining days still count
+    // toward the next freeze.
+    freezesRefreshedOn: toIsoDate(addDays(new Date(`${since}T00:00:00`), earned * DAYS_PER_FREEZE)),
   }
 }
 
@@ -256,8 +258,16 @@ const RULES: Record<BadgeId, BadgeRule> = {
   'scale-walker': (context) =>
     context.scaleExerciseIds.length > 0 &&
     context.scaleExerciseIds.every((id) => context.starredExerciseIds.has(id)),
+  // Counted over notes that were actually matched, not notes offered: the
+  // spread is a standard deviation over matched notes only, so a take where one
+  // note landed and seven were missed has a spread of zero.
   'metronome-steady': (context) =>
-    context.history.some((item) => item.score.totalTargets >= 8 && item.score.timingSpreadMs < 30),
+    context.history.some(
+      (item) =>
+        item.score.totalTargets - item.score.missedNotes >= 8 &&
+        item.score.overall >= 70 &&
+        item.score.timingSpreadMs < 30,
+    ),
   'thousand-notes': (context) => context.notesPlayed >= 1000,
   'angel-complete': (context) => context.masteredExerciseIds.has('song-angel-full'),
   'hymn-complete': (context) => context.masteredExerciseIds.has('song-this-is-the-christ-full'),

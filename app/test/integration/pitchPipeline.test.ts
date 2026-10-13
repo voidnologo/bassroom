@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { Decimator } from '../../src/audio/dsp/decimator'
 import { RingBuffer } from '../../src/audio/dsp/ringBuffer'
 import { YinDetector } from '../../src/audio/dsp/yin'
-import { DEFAULT_PITCH_PROCESSOR_OPTIONS } from '../../src/audio/worklet/messages'
+import {
+  DEFAULT_PITCH_PROCESSOR_OPTIONS,
+  resolveProcessorLayout,
+} from '../../src/audio/worklet/messages'
 import { BASS_HARMONICS, centsBetweenFrequencies, noise, tone } from '../support/signals'
 
 /**
@@ -13,17 +16,18 @@ import { BASS_HARMONICS, centsBetweenFrequencies, noise, tone } from '../support
  */
 const INTERFACE_RATE = 48000
 const OPTIONS = DEFAULT_PITCH_PROCESSOR_OPTIONS
+const LAYOUT = resolveProcessorLayout(INTERFACE_RATE, OPTIONS)
 
 class Pipeline {
-  private readonly decimator = new Decimator(INTERFACE_RATE, OPTIONS.decimation)
-  private readonly ring = new RingBuffer(OPTIONS.bufferSize)
-  private readonly frame = new Float32Array(OPTIONS.bufferSize)
+  private readonly decimator = new Decimator(INTERFACE_RATE, LAYOUT.decimation)
+  private readonly ring = new RingBuffer(LAYOUT.bufferSize)
+  private readonly frame = new Float32Array(LAYOUT.bufferSize)
   private readonly yin: YinDetector
 
   constructor() {
     this.yin = new YinDetector({
       sampleRate: this.decimator.outputRate,
-      bufferSize: OPTIONS.bufferSize,
+      bufferSize: LAYOUT.bufferSize,
       minFrequency: OPTIONS.minFrequency,
       maxFrequency: OPTIONS.maxFrequency,
       threshold: OPTIONS.yinThreshold,
@@ -38,7 +42,7 @@ class Pipeline {
       const decimated = this.decimator.process(signal[i])
       if (decimated === null) continue
       this.ring.push(decimated)
-      if (!this.ring.isFull || ++sinceHop < OPTIONS.hopSize) continue
+      if (!this.ring.isFull || ++sinceHop < LAYOUT.hopSize) continue
       sinceHop = 0
       this.ring.copyInto(this.frame)
       const result = this.yin.detect(this.frame)
@@ -128,5 +132,74 @@ describe('pitch pipeline at 48 kHz', () => {
       }),
     )
     expect(Math.max(...c2)).toBeLessThan(Math.min(...d2))
+  })
+})
+
+describe('processor layout across device sample rates', () => {
+  // An audio interface can be set to any of these, and the detector's window
+  // has to hold two periods of the low E at every one of them.
+  it.each([44100, 48000, 88200, 96000, 176400, 192000])('is usable at %i Hz', (rate) => {
+    const layout = resolveProcessorLayout(rate, OPTIONS)
+    expect(
+      () =>
+        new YinDetector({
+          sampleRate: layout.analysisRate,
+          bufferSize: layout.bufferSize,
+          minFrequency: OPTIONS.minFrequency,
+          maxFrequency: OPTIONS.maxFrequency,
+          threshold: OPTIONS.yinThreshold,
+        }),
+    ).not.toThrow()
+  })
+
+  it.each([44100, 48000, 96000, 192000])(
+    'lands the analysis rate near the target at %i Hz',
+    (rate) => {
+      const layout = resolveProcessorLayout(rate, OPTIONS)
+      expect(layout.analysisRate).toBeGreaterThan(OPTIONS.targetAnalysisRate * 0.7)
+      expect(layout.analysisRate).toBeLessThan(OPTIONS.targetAnalysisRate * 1.45)
+    },
+  )
+
+  it.each([44100, 48000, 96000, 192000])('keeps the window near 128 ms at %i Hz', (rate) => {
+    const layout = resolveProcessorLayout(rate, OPTIONS)
+    const windowMs = (layout.bufferSize / layout.analysisRate) * 1000
+    expect(windowMs).toBeGreaterThan(110)
+    expect(windowMs).toBeLessThan(160)
+  })
+
+  it('detects the open E string at 44.1 kHz, not only at 48', () => {
+    const rate = 44100
+    const layout = resolveProcessorLayout(rate, OPTIONS)
+    const decimator = new Decimator(rate, layout.decimation)
+    const ring = new RingBuffer(layout.bufferSize)
+    const frame = new Float32Array(layout.bufferSize)
+    const yin = new YinDetector({
+      sampleRate: layout.analysisRate,
+      bufferSize: layout.bufferSize,
+      minFrequency: OPTIONS.minFrequency,
+      maxFrequency: OPTIONS.maxFrequency,
+      threshold: OPTIONS.yinThreshold,
+    })
+
+    const signal = tone({
+      sampleRate: rate,
+      frequency: 41.2,
+      length: rate,
+      harmonics: BASS_HARMONICS,
+    })
+    const readings: number[] = []
+    for (let i = 0; i < signal.length; i++) {
+      const decimated = decimator.process(signal[i])
+      if (decimated === null) continue
+      ring.push(decimated)
+      if (!ring.isFull) continue
+      ring.copyInto(frame)
+      const result = yin.detect(frame)
+      if (result) readings.push(result.frequency)
+    }
+
+    const median = readings.slice().sort((a, b) => a - b)[Math.floor(readings.length / 2)]
+    expect(Math.abs(centsBetweenFrequencies(median, 41.2))).toBeLessThan(10)
   })
 })
