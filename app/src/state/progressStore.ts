@@ -28,21 +28,17 @@ const WRITE_DEBOUNCE_MS = 400
 /** Other tabs are told about a write so they do not overwrite it. */
 const SYNC_CHANNEL = 'bassroom.progress'
 
-export type StorageStatus = 'ok' | 'unreadable' | 'unwritable'
-
 interface ProgressStore {
   snapshot: ProgressSnapshot
   loaded: boolean
   /** Set when persistence failed, so the UI can warn instead of losing work silently. */
   storageError: string | null
-  storageStatus: StorageStatus
 
   load: () => Promise<void>
   recordAttempt: (input: Omit<AttemptInput, 'now'>) => AttemptResult
   setLatencyMs: (latencyMs: number) => void
   setPreferredDevice: (deviceId: string | null) => void
   setDailyGoalMinutes: (minutes: number) => void
-  acceptFromAnotherTab: (snapshot: ProgressSnapshot) => void
   resetEverything: () => void
 }
 
@@ -75,7 +71,7 @@ interface Persistence {
  * without it whichever writes last silently erases the other's practice.
  */
 function createPersistence(
-  onStatus: (status: { storageError: string | null; storageStatus: StorageStatus }) => void,
+  onStatus: (status: { storageError: string | null }) => void,
   latest: () => ProgressSnapshot,
 ): Persistence {
   let writeTimer: ReturnType<typeof setTimeout> | null = null
@@ -85,11 +81,10 @@ function createPersistence(
     try {
       await idbSet(STORAGE_KEY, snapshot)
       channel?.postMessage(snapshot)
-      onStatus({ storageError: null, storageStatus: 'ok' })
+      onStatus({ storageError: null })
     } catch (error) {
       onStatus({
         storageError: error instanceof Error ? error.message : String(error),
-        storageStatus: 'unwritable',
       })
     }
   }
@@ -140,7 +135,6 @@ export const useProgressStore = create<ProgressStore>((set, getState) => {
     snapshot: createSnapshot(new Date()),
     loaded: false,
     storageError: null,
-    storageStatus: 'ok',
 
     load: async () => {
       try {
@@ -155,13 +149,11 @@ export const useProgressStore = create<ProgressStore>((set, getState) => {
         set({
           storageError:
             'Your saved progress could not be read and has been set aside. Starting fresh.',
-          storageStatus: 'unreadable',
         })
         await idbDel(STORAGE_KEY)
       } catch (error) {
         set({
           storageError: error instanceof Error ? error.message : String(error),
-          storageStatus: 'unreadable',
         })
       } finally {
         set({ loaded: true })
@@ -193,11 +185,9 @@ export const useProgressStore = create<ProgressStore>((set, getState) => {
         profile: { ...snapshot.profile, dailyGoalMinutes: minutes },
       })),
 
-    acceptFromAnotherTab: (snapshot) => set({ snapshot }),
-
     resetEverything: () => {
       const fresh = createSnapshot(new Date())
-      set({ snapshot: fresh, storageError: null, storageStatus: 'ok' })
+      set({ snapshot: fresh, storageError: null })
       save(fresh)
     },
   }

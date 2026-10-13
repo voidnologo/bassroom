@@ -43,7 +43,6 @@ describe('createLadder', () => {
 describe('advanceLadder', () => {
   it('holds tempo after a single clean take', () => {
     const outcome = advanceLadder(createLadder(107, 60), score(PROMOTION_SCORE))
-    expect(outcome.change).toBe('held')
     expect(outcome.next.currentBpm).toBe(60)
   })
 
@@ -66,7 +65,6 @@ describe('advanceLadder', () => {
   it('drops tempo immediately on a poor take', () => {
     const state = { ...createLadder(107, 60), currentBpm: 90 }
     const outcome = advanceLadder(state, score(DEMOTION_SCORE - 1))
-    expect(outcome.change).toBe('demoted')
     expect(outcome.next.currentBpm).toBeLessThan(90)
   })
 
@@ -83,15 +81,6 @@ describe('advanceLadder', () => {
   it('says so when a clean take happens at full tempo', () => {
     const atTarget = { ...createLadder(107, 60), currentBpm: 107, cleanTakes: TAKES_TO_PROMOTE - 1 }
     expect(advanceLadder(atTarget, score(100)).message).toMatch(/full tempo/)
-  })
-
-  it('records the fastest tempo cleared', () => {
-    const end = takes(createLadder(200, 60), [100, 100, 100, 100, 20])
-    expect(end.bestClearedBpm).toBeGreaterThan(60)
-  })
-
-  it('does not credit a tempo that was never cleared', () => {
-    expect(takes(createLadder(200, 60), [50, 40]).bestClearedBpm).toBe(0)
   })
 
   it('always explains what it did', () => {

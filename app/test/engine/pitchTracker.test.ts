@@ -59,15 +59,6 @@ describe('PitchTracker', () => {
     expect(tracker.resolve(1.0).midi).toBe(C2)
   })
 
-  it('reports how much the frames agreed', () => {
-    const tracker = new PitchTracker()
-    feed(tracker, { from: 1.05, to: 1.1, midi: C2 })
-    feed(tracker, { from: 1.11, to: 1.16, midi: D2 })
-    const resolution = tracker.resolve(1.0)
-    expect(resolution.agreement).toBeGreaterThan(0.3)
-    expect(resolution.agreement).toBeLessThan(0.9)
-  })
-
   it('averages intonation across the frames that agreed', () => {
     const tracker = new PitchTracker()
     feed(tracker, { from: 1.05, to: 1.15, midi: C2, overrides: { cents: -20 } })

@@ -8,13 +8,7 @@ import {
 import { notesPlayed, nothingWasPlayed } from '../engine/judge'
 import type { PerformanceScore } from '../engine/judge'
 import type { Exercise } from '../music/types'
-import {
-  newlyEarnedBadges,
-  recordPractice,
-  xpForAttempt,
-  type StreakOutcome,
-  type XpBreakdown,
-} from './gamification'
+import { newlyEarnedBadges, recordPractice, xpForAttempt, type XpBreakdown } from './gamification'
 import { createReviewState, daysBetween, isDue, scheduleNextReview, toIsoDate } from './srs'
 import {
   PROGRESS_SCHEMA_VERSION,
@@ -87,7 +81,6 @@ export interface AttemptResult {
   stars: Star
   xp: XpBreakdown
   newBadges: BadgeId[]
-  streakOutcome: StreakOutcome
   ladder: LadderOutcome
 }
 
@@ -193,7 +186,6 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     stars,
     xp,
     newBadges,
-    streakOutcome: streakUpdate.outcome,
     ladder,
   }
 }
@@ -222,7 +214,6 @@ const NO_XP: XpBreakdown = {
 function holdLadder(previous: ExerciseProgress): LadderOutcome {
   return {
     next: previous.ladder,
-    change: 'held',
     message: 'Stopped early. Nothing recorded against this one.',
   }
 }

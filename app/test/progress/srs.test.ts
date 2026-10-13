@@ -6,7 +6,6 @@ import {
   addDays,
   createReviewState,
   daysBetween,
-  daysOverdue,
   isDue,
   isSuccess,
   scheduleNextReview,
@@ -115,7 +114,7 @@ describe('scheduleNextReview', () => {
   })
 })
 
-describe('isDue and daysOverdue', () => {
+describe('isDue', () => {
   const state = scheduleNextReview(createReviewState(DAY_ONE), 2, DAY_ONE)
 
   it('is not due before its date', () => {
@@ -128,14 +127,6 @@ describe('isDue and daysOverdue', () => {
 
   it('stays due after its date', () => {
     expect(isDue(state, addDays(DAY_ONE, 10))).toBe(true)
-  })
-
-  it('reports how far overdue it is', () => {
-    expect(daysOverdue(state, addDays(DAY_ONE, 4))).toBe(3)
-  })
-
-  it('reports a negative figure before it is due', () => {
-    expect(daysOverdue(state, DAY_ONE)).toBe(-1)
   })
 })
 

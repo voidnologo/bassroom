@@ -23,8 +23,6 @@ export interface PitchResolution {
   /** Cents from equal temperament of the chosen pitch. */
   cents: number
   /** Fraction of frames in the window that agreed, 0..1. */
-  agreement: number
-  frameCount: number
 }
 
 export interface PitchTrackerOptions {
@@ -81,7 +79,7 @@ export class PitchTracker {
         frame.midi !== null &&
         frame.clarity >= minClarity,
     )
-    if (usable.length === 0) return { midi: null, cents: 0, agreement: 0, frameCount: 0 }
+    if (usable.length === 0) return { midi: null, cents: 0 }
 
     const counts = new Map<number, PitchFrame[]>()
     for (const frame of usable) {
@@ -96,8 +94,6 @@ export class PitchTracker {
     return {
       midi,
       cents: Number(cents.toFixed(1)),
-      agreement: group.length / usable.length,
-      frameCount: usable.length,
     }
   }
 

@@ -186,24 +186,14 @@ describe('applyAttempt', () => {
     )
   })
 
-  it('moves the tempo ladder', () => {
-    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: score(30) }))
-    expect(result.ladder.change).toBeDefined()
-  })
-
   it('schedules the exercise for review', () => {
     const result = applyAttempt(createSnapshot(DAY_ONE), input())
     expect(result.snapshot.exercises['test-pulse'].review.dueOn > '2026-03-02').toBe(true)
   })
 
-  it('starts the practice streak', () => {
-    expect(applyAttempt(createSnapshot(DAY_ONE), input()).streakOutcome).toBe('started')
-  })
-
   it('does not count a second take on the same day as a second day', () => {
     const first = applyAttempt(createSnapshot(DAY_ONE), input())
     const second = applyAttempt(first.snapshot, input())
-    expect(second.streakOutcome).toBe('already-counted')
     expect(second.snapshot.profile.streak.current).toBe(1)
   })
 

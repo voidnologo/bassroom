@@ -92,11 +92,6 @@ export function isDue(state: ReviewState, today: Date): boolean {
   return state.dueOn <= toIsoDate(today)
 }
 
-/** How overdue an exercise is, in days. Negative when it is not yet due. */
-export function daysOverdue(state: ReviewState, today: Date): number {
-  return Math.round((today.getTime() - new Date(`${state.dueOn}T00:00:00`).getTime()) / 86_400_000)
-}
-
 export function toIsoDate(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')

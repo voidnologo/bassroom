@@ -15,8 +15,6 @@ export interface LadderState {
   floorBpm: number
   /** Consecutive clean takes at the current tempo. */
   cleanTakes: number
-  /** Best tempo at which a take scored well enough to count. */
-  bestClearedBpm: number
 }
 
 export const PROMOTION_SCORE = 90
@@ -29,27 +27,21 @@ export function createLadder(targetBpm: number, floorBpm: number): LadderState {
     targetBpm,
     floorBpm,
     cleanTakes: 0,
-    bestClearedBpm: 0,
   }
 }
 
 export interface LadderOutcome {
   next: LadderState
-  change: 'promoted' | 'held' | 'demoted'
   message: string
 }
 
 export function advanceLadder(state: LadderState, score: PerformanceScore): LadderOutcome {
   const cleared = score.overall >= PROMOTION_SCORE
-  const bestClearedBpm = cleared
-    ? Math.max(state.bestClearedBpm, state.currentBpm)
-    : state.bestClearedBpm
 
   if (score.overall < DEMOTION_SCORE) {
     const nextBpm = Math.max(state.floorBpm, Math.round(state.currentBpm * 0.9))
     return {
-      next: { ...state, currentBpm: nextBpm, cleanTakes: 0, bestClearedBpm },
-      change: nextBpm === state.currentBpm ? 'held' : 'demoted',
+      next: { ...state, currentBpm: nextBpm, cleanTakes: 0 },
       message:
         nextBpm === state.currentBpm
           ? 'Staying here. This tempo is still the right place to work.'
@@ -59,8 +51,7 @@ export function advanceLadder(state: LadderState, score: PerformanceScore): Ladd
 
   if (!cleared) {
     return {
-      next: { ...state, cleanTakes: 0, bestClearedBpm },
-      change: 'held',
+      next: { ...state, cleanTakes: 0 },
       message: 'Close. One more clean take at this tempo.',
     }
   }
@@ -68,24 +59,21 @@ export function advanceLadder(state: LadderState, score: PerformanceScore): Ladd
   const cleanTakes = state.cleanTakes + 1
   if (cleanTakes < TAKES_TO_PROMOTE) {
     return {
-      next: { ...state, cleanTakes, bestClearedBpm },
-      change: 'held',
+      next: { ...state, cleanTakes },
       message: `Clean. ${TAKES_TO_PROMOTE - cleanTakes} more like that and the tempo goes up.`,
     }
   }
 
   if (state.currentBpm >= state.targetBpm) {
     return {
-      next: { ...state, cleanTakes: 0, bestClearedBpm },
-      change: 'held',
+      next: { ...state, cleanTakes: 0 },
       message: 'That is full tempo, played clean. This one is yours.',
     }
   }
 
   const nextBpm = Math.min(state.targetBpm, nextRung(state.currentBpm))
   return {
-    next: { ...state, currentBpm: nextBpm, cleanTakes: 0, bestClearedBpm },
-    change: 'promoted',
+    next: { ...state, currentBpm: nextBpm, cleanTakes: 0 },
     message: `Up to ${nextBpm} bpm.`,
   }
 }
