@@ -90,7 +90,15 @@ Present these one at a time. The parenthetical after each heading is for you, no
 
 ### Step 1 — Hardware and gain
 
-Bass into input 1 on the Scarlett. Then `cd app && npm run dev`, open http://localhost:5173 in Chrome, go to **Setup**, choose the Scarlett explicitly in the device list — not "Default input" — and press **Start listening**.
+**Ask which machine he is on before anything else.** He works on macOS here and on Omarchy at home, and the Linux box has a precondition the Mac does not: the Scarlett must be visible to PipeWire before Chrome will offer it at all. On Linux, have him run this before opening the browser:
+
+```bash
+wpctl status | grep -iA5 Sources     # or: pactl list short sources
+```
+
+If the Scarlett is not listed, the browser is not the problem and nothing in Chrome will fix it — check `systemctl --user status pipewire wireplumber`, and that the interface is powered and enumerated (`lsusb`). If it appears only after Chrome was already open, the device list needs a page reload before it shows up. Treat "the Scarlett is missing from the dropdown" as a Linux audio-stack question until PipeWire says otherwise: it looks exactly like a dead input and has nothing to do with this codebase.
+
+Then, on either machine: bass into input 1 on the Scarlett, `cd app && npm run dev`, open http://localhost:5173 in Chrome, go to **Setup**, choose the Scarlett explicitly in the device list — not "Default input" — and press **Start listening**.
 
 Then: play hard, and watch the halo ring. Raise the interface gain until it glows green on a hard dig and never flashes red. A clipped signal is harder to read a pitch from, not easier.
 
@@ -180,6 +188,8 @@ Confirm `npm run verify` is green and the gates are clean, then ask whether to p
 ## Things that will go wrong, and what they mean
 
 **A constant change appears to do nothing.** It is in the worklet bundle and you did not run `npm run build:worklet`, or the browser served the cached `pitch-processor.js`. Hard reload.
+
+**The Scarlett is not in the device dropdown at all (Linux).** PipeWire is not exposing it, so Chrome cannot enumerate it. `wpctl status` is the check; the browser is downstream of that and cannot be made to see a device the audio server does not have. On macOS the equivalent is the interface not being selected in Audio MIDI Setup.
 
 **No diagnostics file appears.** The toggle is off, or the coach server is not running. `npm run dev` starts both; check port 8787 is up.
 
