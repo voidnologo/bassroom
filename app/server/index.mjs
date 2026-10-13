@@ -15,8 +15,7 @@
  */
 
 import { createServer } from 'node:http'
-import { appendFile, mkdir, readFile, readdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { appendFile, mkdir } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -199,24 +198,6 @@ async function handleRecordTake(request, response) {
   sendJson(response, 201, { recorded: true, file })
 }
 
-async function handleListTakes(response) {
-  if (!existsSync(SESSIONS_DIR)) {
-    sendJson(response, 200, { files: [], takeCount: 0 })
-    return
-  }
-  const names = (await readdir(SESSIONS_DIR)).filter((name) => name.endsWith('.jsonl')).sort()
-  const counts = await Promise.all(names.map((name) => countLines(join(SESSIONS_DIR, name))))
-  sendJson(response, 200, {
-    files: names.map((name, index) => ({ name, takes: counts[index] })),
-    takeCount: counts.reduce((sum, count) => sum + count, 0),
-  })
-}
-
-async function countLines(path) {
-  const text = await readFile(path, 'utf8')
-  return text.split('\n').filter((line) => line.trim() !== '').length
-}
-
 const ROUTES = [
   {
     method: 'GET',
@@ -225,7 +206,6 @@ const ROUTES = [
   },
   { method: 'POST', path: '/api/coach/review', handle: handleReview },
   { method: 'POST', path: '/api/takes', handle: handleRecordTake },
-  { method: 'GET', path: '/api/takes', handle: (_request, response) => handleListTakes(response) },
 ]
 
 const server = createServer(async (request, response) => {

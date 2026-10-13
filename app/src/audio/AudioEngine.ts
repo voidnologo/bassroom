@@ -1,5 +1,4 @@
 import { centsFromNearestNote } from '../music/notes'
-export type { EngineState, InputDeviceInfo, InputDeviceInfo as InputDevice } from './contracts'
 import type { AudioEngineApi, EngineState, InputDeviceInfo, TimeKeeper } from './contracts'
 import {
   DEFAULT_PITCH_PROCESSOR_OPTIONS,
@@ -52,9 +51,8 @@ export class AudioEngine implements AudioEngineApi {
   /** Incremented by every start and stop, so a superseded start can bail out. */
   private startGeneration = 0
   private unavailableListeners = new Set<(reason: string) => void>()
-  private options: Required<EngineOptions>
+  private readonly options: Required<EngineOptions>
   private holdingPitch = false
-  public lastError: string | null = null
 
   /**
    * Set when the browser ignored a constraint. All three of echo cancellation,
@@ -110,7 +108,6 @@ export class AudioEngine implements AudioEngineApi {
     if (this.state === 'running' || this.state === 'starting') return
     const generation = ++this.startGeneration
     this.setState('starting')
-    this.lastError = null
 
     try {
       // Every one of these processing stages is designed for speech and will
@@ -163,7 +160,6 @@ export class AudioEngine implements AudioEngineApi {
       this.processingWarning = describeUnwantedProcessing(this.stream)
       this.setState('running')
     } catch (error) {
-      this.lastError = error instanceof Error ? error.message : String(error)
       this.setState('error')
       await this.stop()
       throw error
@@ -236,13 +232,8 @@ export class AudioEngine implements AudioEngineApi {
 
   private reportUnavailable(reason: string): void {
     if (this.state !== 'running') return
-    this.lastError = reason
     this.setState('error')
     for (const listener of [...this.unavailableListeners]) listener(reason)
-  }
-
-  setOptions(options: EngineOptions): void {
-    this.options = { ...this.options, ...options }
   }
 
   private handleWorkletMessage(message: WorkletMessage): void {

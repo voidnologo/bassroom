@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { HeuristicCoach } from '../../src/coach/heuristic'
 import { parseFeedback } from '../../src/coach/llm'
-import { buildTelemetry, locate } from '../../src/coach/telemetry'
+import { buildTelemetry } from '../../src/coach/telemetry'
 import {
   TELEMETRY_SCHEMA_VERSION,
   type CoachRequest,
@@ -98,24 +98,6 @@ describe('buildTelemetry', () => {
     const telemetry = request(slightlyFlat).telemetry
     expect(telemetry.notes[0].semitoneError).toBe(0)
     expect(telemetry.notes[0].centsOffset).toBeLessThan(0)
-  })
-})
-
-describe('locate', () => {
-  it('names a downbeat', () => {
-    expect(locate(0, [4, 4])).toBe('bar 1, beat 1')
-  })
-
-  it('names a beat later in a bar', () => {
-    expect(locate(6, [4, 4])).toBe('bar 2, beat 3')
-  })
-
-  it('names an offbeat with its fraction', () => {
-    expect(locate(1.5, [4, 4])).toContain('2.50')
-  })
-
-  it('counts bars in three-four correctly', () => {
-    expect(locate(3, [3, 4])).toBe('bar 2, beat 1')
   })
 })
 

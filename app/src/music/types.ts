@@ -47,8 +47,6 @@ export type PracticeMode =
   | 'call-response'
   /** Scrolling timeline against a metronome. Judges pitch and timing. */
   | 'play-along'
-  /** Metronome and chart only; nothing is graded. */
-  | 'free-play'
 
 export interface Exercise {
   id: string

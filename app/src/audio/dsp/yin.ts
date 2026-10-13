@@ -69,10 +69,6 @@ export class YinDetector {
     this.cumulative = new Float32Array(this.tauMax + 1)
   }
 
-  get frameSize(): number {
-    return this.options.bufferSize
-  }
-
   /**
    * Both buffers are scratch, rewritten end to end on every `detect`, so no
    * estimate can carry into the next take. Clearing them anyway keeps the

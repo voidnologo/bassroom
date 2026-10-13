@@ -145,6 +145,8 @@ function Tuner() {
 
 const CALIBRATION_BPM = 80
 const CALIBRATION_BEATS = 16
+/** One bar of 4, the gap the on-screen instruction promises before counting starts. */
+const CALIBRATION_COUNT_IN = 4
 
 /**
  * Measures how long a note takes to travel from the string to this app.
@@ -197,10 +199,13 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
 
     const metronome = engine.createTimeKeeper()
     metronomeRef.current = metronome
-    const startTime = metronome.start({ bpm: CALIBRATION_BPM, beatsPerBar: 4, countInBeats: 4 })
-    const period = 60 / CALIBRATION_BPM
-    const bodyStart = startTime + 4 * period
-    const endsAt = bodyStart + CALIBRATION_BEATS * period
+    metronome.start({ bpm: CALIBRATION_BPM, beatsPerBar: 4, countInBeats: CALIBRATION_COUNT_IN })
+    // Asked of the clock rather than recomputed: writing the count-in length a
+    // second time here would shift every sample by a beat if the two drifted,
+    // and summarizeCalibration would report a confident wrong latency.
+    const period = metronome.secondsPerBeat
+    const bodyStart = metronome.bodyBeatToTime(0)
+    const endsAt = metronome.bodyBeatToTime(CALIBRATION_BEATS)
 
     const off = engine.onOnset((onset) => {
       if (onset.time < bodyStart - period / 2) return

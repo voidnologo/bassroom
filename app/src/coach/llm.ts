@@ -38,11 +38,6 @@ export class LanguageModelCoach implements CoachProvider {
     return this.availability
   }
 
-  /** Forget a cached answer, so a key added mid-session is picked up. */
-  resetAvailability(): void {
-    this.availability = null
-  }
-
   async analyze(request: CoachRequest): Promise<CoachFeedback> {
     const payload = buildTakeReviewPayload(request.telemetry, request.recentTakes.slice(0, 3))
     const response = await fetchWithTimeout(ENDPOINT, {

@@ -38,17 +38,9 @@ export class Metronome implements TimeKeeper {
     return 60 / this.bpm
   }
 
-  get isRunning(): boolean {
-    return this.timer !== null
-  }
-
   /** AudioContext time at which body beat 0 occurs. */
   get bodyStartTime(): number {
     return this.startTime + this.countInBeats * this.secondsPerBeat
-  }
-
-  setVolume(volume: number): void {
-    this.output.gain.value = volume
   }
 
   /**
@@ -58,10 +50,6 @@ export class Metronome implements TimeKeeper {
    */
   setTempo(bpm: number): void {
     this.bpm = Math.max(20, Math.min(300, bpm))
-  }
-
-  getTempo(): number {
-    return this.bpm
   }
 
   start(options: TimeKeeperOptions & { startDelay?: number }): number {

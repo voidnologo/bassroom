@@ -22,9 +22,6 @@ export class CoachService {
   private readonly listeners = new Set<(status: CoachStatus) => void>()
   private modelError: string | null = null
 
-  /** Set false to stay on the built-in coach regardless of configuration. */
-  public useModelWhenAvailable = true
-
   get lastModelError(): string | null {
     return this.modelError
   }
@@ -64,18 +61,12 @@ export class CoachService {
     }
   }
 
-  /** Re-check whether a model is configured, after a settings change. */
-  refresh(): void {
-    this.model.resetAvailability()
-  }
-
   private async pick(): Promise<CoachProvider> {
-    if (!this.useModelWhenAvailable) return this.heuristic
     return (await this.model.isAvailable()) ? this.model : this.heuristic
   }
 }
 
 export { HeuristicCoach } from './heuristic'
 export { LanguageModelCoach, parseFeedback } from './llm'
-export { buildTelemetry, locate } from './telemetry'
+export { buildTelemetry } from './telemetry'
 export * from './types'

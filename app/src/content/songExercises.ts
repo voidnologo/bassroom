@@ -20,7 +20,6 @@ export interface SongExerciseSpec {
   title: string
   instructions: string
   skills: SkillId[]
-  targetBpm?: number
   floorBpm?: number
   repeats?: number
   tips?: string[]
@@ -147,7 +146,7 @@ function buildExercise(spec: SongExerciseSpec, song: SongChart): Exercise {
     keyCenter: song.keyCenter,
     timeSignature: signature,
     meterChanges,
-    targetBpm: spec.targetBpm ?? song.targetBpm,
+    targetBpm: song.targetBpm,
     floorBpm: spec.floorBpm ?? song.floorBpm,
     repeats: spec.repeats,
     tips: spec.tips ?? song.performanceNotes.slice(0, 2),

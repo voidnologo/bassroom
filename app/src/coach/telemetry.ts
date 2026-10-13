@@ -1,8 +1,8 @@
 import type { NoteJudgment } from '../engine/judge'
 import { scorePerformance } from '../engine/judge'
-import { barPositionAt, type MeterChange } from '../music/meter'
+import { barPositionAt } from '../music/meter'
 import { centsFromNearestNote, midiToFrequency, shiftByCents } from '../music/notes'
-import type { Exercise, TimeSignature } from '../music/types'
+import type { Exercise } from '../music/types'
 import { TELEMETRY_SCHEMA_VERSION, type NoteTelemetry, type TakeTelemetry } from './types'
 
 /**
@@ -95,14 +95,4 @@ function whatWasPlayed(
 function centsOffsetOf(playedMidi: number, reportedCents: number): number {
   const sounded = shiftByCents(midiToFrequency(playedMidi), reportedCents)
   return Number(centsFromNearestNote(sounded).cents.toFixed(1))
-}
-
-/** Bar and beat of a position, for referring to a spot in the music. */
-export function locate(
-  startBeat: number,
-  timeSignature: TimeSignature,
-  meterChanges?: MeterChange[],
-): string {
-  const { bar, beatInBar } = barPositionAt(startBeat, timeSignature, meterChanges)
-  return `bar ${bar}, beat ${beatInBar % 1 === 0 ? beatInBar : beatInBar.toFixed(2)}`
 }

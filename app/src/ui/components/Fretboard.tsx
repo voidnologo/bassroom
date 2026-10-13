@@ -8,7 +8,7 @@ import {
   positionsFor,
   type Position,
 } from '../../music/fretboard'
-import { noteName, pitchClassName } from '../../music/notes'
+import { noteName } from '../../music/notes'
 
 /**
  * The neck, drawn as the player sees it: thickest string at the bottom.
@@ -27,7 +27,6 @@ export interface FretboardProps {
   detectedCents?: number
   firstFret?: number
   fretCount?: number
-  showNoteNames?: boolean
 }
 
 const VIEW_WIDTH = 920
@@ -77,13 +76,11 @@ function withDefaults(props: FretboardProps): Required<FretboardProps> {
     detectedCents: props.detectedCents ?? 0,
     firstFret: props.firstFret ?? 0,
     fretCount: props.fretCount ?? 12,
-    showNoteNames: props.showNoteNames ?? false,
   }
 }
 
 export function Fretboard(props: FretboardProps) {
-  const { target, finger, detectedMidi, detectedCents, firstFret, fretCount, showNoteNames } =
-    withDefaults(props)
+  const { target, finger, detectedMidi, detectedCents, firstFret, fretCount } = withDefaults(props)
   const layout = useLayout(firstFret, fretCount)
   const detectedPositions = useMemo(
     () => (detectedMidi === null ? [] : positionsFor(detectedMidi)),
@@ -110,7 +107,6 @@ export function Fretboard(props: FretboardProps) {
       <FretLines layout={layout} />
       <InlayDots layout={layout} />
       <Strings layout={layout} />
-      {showNoteNames && <NoteNames layout={layout} />}
       <HeardPositions positions={detectedPositions} layout={layout} correct={isRight} />
       {target && <TargetMarker target={target} finger={finger} layout={layout} correct={isRight} />}
       {detectedMidi !== null && (
@@ -183,25 +179,6 @@ function Strings({ layout }: { layout: Layout }) {
           </text>
         </g>
       ))}
-    </>
-  )
-}
-
-function NoteNames({ layout }: { layout: Layout }) {
-  return (
-    <>
-      {layout.frets.flatMap((fret) =>
-        STANDARD_TUNING.map((open, string) => (
-          <text
-            key={`${string}-${fret}`}
-            x={layout.xOf(fret)}
-            y={layout.yOf(string) - 7}
-            className="fret-note-name"
-          >
-            {pitchClassName(open + fret)}
-          </text>
-        )),
-      )}
     </>
   )
 }
