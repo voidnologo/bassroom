@@ -23,8 +23,14 @@ export interface InputDevice {
 }
 
 export interface EngineOptions {
-  /** Readings below this clarity are reported as "no pitch". */
-  minClarity?: number
+  /** Clarity needed to start reporting a pitch. */
+  enterClarity?: number
+  /**
+   * Clarity needed to keep reporting it. Lower than `enterClarity` on purpose:
+   * a plucked note's clarity falls as it decays, and a single threshold makes
+   * the readout flicker on and off through the whole tail of every note.
+   */
+  exitClarity?: number
   /** Readings below this RMS are reported as "no pitch". */
   minRms?: number
 }
@@ -54,10 +60,19 @@ export class AudioEngine {
 
   private state: EngineState = 'idle'
   private options: Required<EngineOptions>
+  private holdingPitch = false
   public lastError: string | null = null
 
+  /**
+   * Set when the browser ignored a constraint. All three of echo cancellation,
+   * noise suppression and automatic gain control are designed for speech:
+   * noise suppression treats a sustained 41 Hz tone as stationary noise, and
+   * AGC breaks every amplitude threshold the onset detector depends on.
+   */
+  public processingWarning: string | null = null
+
   constructor(options: EngineOptions = {}) {
-    this.options = { minClarity: 0.82, minRms: 0.004, ...options }
+    this.options = { enterClarity: 0.85, exitClarity: 0.65, minRms: 0.004, ...options }
   }
 
   getState(): EngineState {
@@ -139,6 +154,7 @@ export class AudioEngine {
       // lower latency than anything routed through the browser, and skipping
       // it removes any chance of a feedback loop through speakers.
       this.source.connect(this.worklet)
+      this.processingWarning = describeUnwantedProcessing(this.stream)
       this.setState('running')
     } catch (error) {
       this.lastError = error instanceof Error ? error.message : String(error)
@@ -188,11 +204,8 @@ export class AudioEngine {
     }
     if (message.type !== 'pitch') return
 
-    const usable =
-      message.frequency > 0 &&
-      message.clarity >= this.options.minClarity &&
-      message.rms >= this.options.minRms
-
+    const usable = this.isUsable(message.frequency, message.clarity, message.rms)
+    this.holdingPitch = usable
     const nearest = usable ? centsFromNearestNote(message.frequency) : null
     const frame: PitchFrame = {
       time: message.time,
@@ -205,8 +218,38 @@ export class AudioEngine {
     this.pitchListeners.forEach((listener) => listener(frame))
   }
 
+  /** Hysteresis: it is harder to acquire a pitch than it is to keep one. */
+  private isUsable(frequency: number, clarity: number, rms: number): boolean {
+    if (frequency <= 0 || rms < this.options.minRms) return false
+    const needed = this.holdingPitch ? this.options.exitClarity : this.options.enterClarity
+    return clarity >= needed
+  }
+
   private setState(state: EngineState): void {
     this.state = state
     this.stateListeners.forEach((listener) => listener(state))
   }
+}
+
+/**
+ * Constraints are requests, not commands: a browser that does not honour one
+ * silently ignores it, so the only way to know is to read the settings back.
+ */
+function describeUnwantedProcessing(stream: MediaStream): string | null {
+  const track = stream.getAudioTracks()[0]
+  if (!track) return null
+  const settings = track.getSettings() as MediaTrackSettings & {
+    echoCancellation?: boolean
+    noiseSuppression?: boolean
+    autoGainControl?: boolean
+  }
+
+  const stillOn = [
+    settings.echoCancellation === true ? 'echo cancellation' : null,
+    settings.noiseSuppression === true ? 'noise suppression' : null,
+    settings.autoGainControl === true ? 'automatic gain control' : null,
+  ].filter((name): name is string => name !== null)
+
+  if (stillOn.length === 0) return null
+  return `The browser kept ${stillOn.join(', ')} switched on for this input. All of these are built for speech and will interfere with pitch and timing detection. Try a different input, or a different browser.`
 }

@@ -117,9 +117,17 @@ export class YinDetector {
 
   /**
    * Step 4: take the *first* lag that dips below the threshold, descending to
-   * its local minimum, rather than the global minimum. The global minimum sits
-   * at twice the true period often enough that using it is the single largest
-   * source of octave errors on the low strings.
+   * its local minimum, rather than the global minimum. Every periodic signal
+   * also repeats at two and three times its period, and the cumulative mean
+   * normalisation makes those longer lags score marginally better still, so
+   * the global minimum is an octave-below answer more often than not.
+   *
+   * A sub-periodic check - preferring 2tau when it scores better - was tried
+   * here and removed. See docs/audio-pipeline.md: against synthesised bass
+   * tones it fired on correct detections and turned them into octave errors,
+   * and the realistic bass case it was meant to fix, a note whose fundamental
+   * is quieter than its second harmonic, is already resolved correctly because
+   * the odd harmonics keep the waveform from repeating at half the period.
    */
   private pickPeriod(): number | null {
     const { cumulative, tauMin, tauMax, options } = this

@@ -1,3 +1,4 @@
+import { FilterChain } from '../dsp/biquad'
 import { Decimator } from '../dsp/decimator'
 import { DEFAULT_ONSET_OPTIONS, OnsetDetector } from '../dsp/onset'
 import { RingBuffer } from '../dsp/ringBuffer'
@@ -20,6 +21,8 @@ import {
  */
 class PitchProcessor extends AudioWorkletProcessor {
   private readonly options: PitchProcessorOptions
+  private readonly dcBlocker: FilterChain
+  private readonly blocked: Float32Array
   private readonly decimator: Decimator
   private readonly ring: RingBuffer
   private readonly frame: Float32Array
@@ -34,6 +37,10 @@ class PitchProcessor extends AudioWorkletProcessor {
     super()
     this.options = { ...DEFAULT_PITCH_PROCESSOR_OPTIONS, ...(options?.processorOptions ?? {}) }
 
+    // 20 Hz is an octave below the open E string, so this removes any offset
+    // without touching the lowest note the instrument can produce.
+    this.dcBlocker = FilterChain.butterworthHighpass(sampleRate, 20, 2)
+    this.blocked = new Float32Array(128)
     this.decimator = new Decimator(sampleRate, this.options.decimation)
     this.ring = new RingBuffer(this.options.bufferSize)
     this.frame = new Float32Array(this.options.bufferSize)
@@ -66,13 +73,22 @@ class PitchProcessor extends AudioWorkletProcessor {
     const channel = inputs[0]?.[0]
     if (!channel) return true
 
-    this.onsets.process(channel, currentTime, (onset) => {
+    const clean = this.removeOffset(channel)
+    this.onsets.process(clean, currentTime, (onset) => {
       this.port.postMessage({ type: 'onset', time: onset.time, level: onset.level })
     })
 
-    this.accumulate(channel)
+    this.accumulate(clean)
     if (this.shouldAnalyze()) this.analyze()
     return true
+  }
+
+  /** Writes into a preallocated buffer; the audio thread must not allocate. */
+  private removeOffset(channel: Float32Array): Float32Array {
+    const target =
+      channel.length === this.blocked.length ? this.blocked : new Float32Array(channel.length)
+    for (let i = 0; i < channel.length; i++) target[i] = this.dcBlocker.process(channel[i])
+    return target
   }
 
   private accumulate(channel: Float32Array): void {

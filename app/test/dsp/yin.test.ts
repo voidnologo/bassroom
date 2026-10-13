@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_YIN_OPTIONS, YinDetector, parabolicMinimum } from '../../src/audio/dsp/yin'
 import {
   BASS_HARMONICS,
+  MISSING_FUNDAMENTAL,
   SECOND_HARMONIC_HEAVY,
   centsBetweenFrequencies,
   noise,
@@ -79,6 +80,22 @@ describe('YinDetector', () => {
         frequency: fundamental,
         length: BUFFER_SIZE,
         harmonics: SECOND_HARMONIC_HEAVY,
+      }),
+    )
+    expect(result).not.toBeNull()
+    expect(Math.abs(centsBetweenFrequencies(result!.frequency, fundamental))).toBeLessThan(15)
+  })
+
+  it('finds the fundamental even when there is no energy at it', () => {
+    // A plucked string through some pickups genuinely has a second harmonic
+    // louder than its fundamental; period-domain detection does not care.
+    const fundamental = 41.2
+    const result = detector().detect(
+      tone({
+        sampleRate: SAMPLE_RATE,
+        frequency: fundamental,
+        length: BUFFER_SIZE,
+        harmonics: MISSING_FUNDAMENTAL,
       }),
     )
     expect(result).not.toBeNull()

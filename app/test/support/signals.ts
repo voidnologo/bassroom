@@ -88,3 +88,6 @@ export function concat(...signals: Float32Array[]): Float32Array {
 export function centsBetweenFrequencies(a: number, b: number): number {
   return 1200 * Math.log2(a / b)
 }
+
+/** No energy at the fundamental at all, which a plucked string can genuinely produce. */
+export const MISSING_FUNDAMENTAL = [0, 1, 0.7, 0.5, 0.3, 0.2]
