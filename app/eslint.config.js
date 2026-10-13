@@ -51,7 +51,9 @@ export default typescript.config(
     // React components are mostly JSX, which blows past a prose-sized line
     // budget without becoming harder to read.
     files: ['src/ui/**/*.tsx'],
-    rules: { 'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }] },
+    rules: {
+      'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+    },
   },
 
   {

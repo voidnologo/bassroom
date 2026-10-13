@@ -72,7 +72,12 @@ export class Metronome {
     return this.bpm
   }
 
-  start(options: { bpm: number; beatsPerBar: number; countInBeats: number; startDelay?: number }): number {
+  start(options: {
+    bpm: number
+    beatsPerBar: number
+    countInBeats: number
+    startDelay?: number
+  }): number {
     this.stop()
     this.bpm = options.bpm
     this.beatsPerBar = options.beatsPerBar

@@ -41,7 +41,9 @@ export interface LadderOutcome {
 
 export function advanceLadder(state: LadderState, score: PerformanceScore): LadderOutcome {
   const cleared = score.overall >= PROMOTION_SCORE
-  const bestClearedBpm = cleared ? Math.max(state.bestClearedBpm, state.currentBpm) : state.bestClearedBpm
+  const bestClearedBpm = cleared
+    ? Math.max(state.bestClearedBpm, state.currentBpm)
+    : state.bestClearedBpm
 
   if (score.overall < DEMOTION_SCORE) {
     const nextBpm = Math.max(state.floorBpm, Math.round(state.currentBpm * 0.9))

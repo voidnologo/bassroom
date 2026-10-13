@@ -57,8 +57,19 @@ export function parseNote(name: string): number {
 
 /** Interval name used in drills, e.g. 7 -> "perfect 5th". */
 const INTERVAL_NAMES = [
-  'unison', 'minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', 'perfect 4th',
-  'tritone', 'perfect 5th', 'minor 6th', 'major 6th', 'minor 7th', 'major 7th', 'octave',
+  'unison',
+  'minor 2nd',
+  'major 2nd',
+  'minor 3rd',
+  'major 3rd',
+  'perfect 4th',
+  'tritone',
+  'perfect 5th',
+  'minor 6th',
+  'major 6th',
+  'minor 7th',
+  'major 7th',
+  'octave',
 ]
 
 export function intervalName(semitones: number): string {
