@@ -116,25 +116,26 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
     beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
     setTake({ ...initialState, phase: 'count-in' })
 
-    const session = new PracticeSession(
-      engine,
-      {
+    const session = new PracticeSession({
+      input: engine,
+      createTimeKeeper: () => engine.createTimeKeeper(),
+      latencyMs: snapshot.profile.inputLatencyMs,
+      callbacks: {
         onPhase: (phase) => setTake((current) => ({ ...current, phase })),
         onPrompt: (_note, index) => setTake((current) => ({ ...current, promptIndex: index })),
         onFinish: finish,
       },
-      { latencyMs: snapshot.profile.inputLatencyMs },
-    )
+    })
     sessionRef.current = session
     session.start(exercise, bpm)
   }, [bpm, engine, exercise, finish, snapshot.profile.inputLatencyMs])
 
   const stop = useCallback(() => {
-    sessionRef.current?.finishEarly()
+    sessionRef.current?.stop()
     sessionRef.current = null
   }, [])
 
-  useEffect(() => () => sessionRef.current?.stop(), [])
+  useEffect(() => () => sessionRef.current?.dispose(), [])
   useBeatClock({
     engine,
     sessionRef,
@@ -258,8 +259,8 @@ function useBeatClock(options: BeatClockOptions): void {
   const { engine, sessionRef, beatRef, frameRef, beatsPerBar, setTake } = options
   useEffect(() => {
     const tick = (): void => {
-      const metronome = sessionRef.current?.getMetronome()
-      if (metronome) beatRef.current = metronome.timeToBodyBeat(engine.now())
+      const clock = sessionRef.current?.getTimeKeeper()
+      if (clock) beatRef.current = clock.timeToBodyBeat(engine.now())
       frameRef.current = requestAnimationFrame(tick)
     }
     frameRef.current = requestAnimationFrame(tick)

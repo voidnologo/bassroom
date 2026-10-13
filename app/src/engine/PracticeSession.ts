@@ -1,5 +1,6 @@
-import type { AudioEngine, OnsetEvent, PitchFrame } from '../audio/AudioEngine'
-import { Metronome, type BeatEvent } from '../audio/Metronome'
+import type { OnsetEvent, PitchFrame } from '../audio/AudioEngine'
+import type { AudioInput, TimeKeeper, TimeKeeperFactory } from '../audio/contracts'
+import type { BeatEvent } from '../audio/Metronome'
 import type { Exercise, TargetNote } from '../music/types'
 import {
   judgePerformance,
@@ -14,9 +15,13 @@ import { PitchTracker } from './PitchTracker'
  * Runs one take.
  *
  * Owns the clock, collects what was played, and judges it at the end. The two
- * modes differ enough to be worth separating: a play-along take is driven by
- * the metronome and graded on timing, while a call-and-response take has no
- * clock at all and simply waits for the right pitch.
+ * modes differ enough to be worth keeping apart inside it: a play-along take is
+ * driven by the beat clock and graded on timing, while a call-and-response take
+ * has no clock at all and simply waits for the right pitch.
+ *
+ * It depends on `AudioInput` and `TimeKeeper` rather than on the concrete audio
+ * classes, so the whole state machine can be driven by synthetic frames in a
+ * test without a browser.
  */
 
 export type SessionPhase = 'idle' | 'count-in' | 'playing' | 'judging' | 'finished'
@@ -27,12 +32,14 @@ export interface SessionResult {
   judgments: NoteJudgment[]
   score: PerformanceScore
   durationSeconds: number
+  /** True when the take was stopped by the player rather than running out. */
+  abandoned: boolean
 }
 
 export interface SessionCallbacks {
   onPhase?: (phase: SessionPhase) => void
   onBeat?: (beat: BeatEvent) => void
-  onPitch?: (frame: PitchFrame, tracker: PitchTracker) => void
+  onPitch?: (frame: PitchFrame) => void
   /** Fired as soon as a played note is resolved, for immediate feedback. */
   onNote?: (played: PlayedNote, targetIndex: number | null) => void
   /** Call-and-response only: the prompt the learner should play next. */
@@ -40,38 +47,56 @@ export interface SessionCallbacks {
   onFinish?: (result: SessionResult) => void
 }
 
-export interface SessionOptions {
+export interface PracticeSessionOptions {
+  input: AudioInput
+  createTimeKeeper: TimeKeeperFactory
+  callbacks?: SessionCallbacks
   /** Measured input latency, subtracted from every onset before judging. */
-  latencyMs: number
+  latencyMs?: number
   /** Beats of silence allowed after the last note before the take ends. */
   tailBeats?: number
+  /** Seconds to wait after the last beat for pending onsets to resolve. */
+  settleSeconds?: number
 }
 
 const DEFAULT_TAIL_BEATS = 2
+const DEFAULT_SETTLE_SECONDS = 0.4
+
+/** Consecutive agreeing frames before a call-and-response prompt is passed. */
+const FRAMES_TO_ACCEPT = 3
 
 export class PracticeSession {
-  private metronome: Metronome | null = null
+  private readonly input: AudioInput
+  private readonly createTimeKeeper: TimeKeeperFactory
+  private readonly callbacks: SessionCallbacks
+  private readonly latencyMs: number
+  private readonly tailBeats: number
+  private readonly settleSeconds: number
+
   private readonly tracker = new PitchTracker()
+  private timeKeeper: TimeKeeper | null = null
   private unsubscribers: Array<() => void> = []
+  private finishTimer: ReturnType<typeof setTimeout> | null = null
+
   private pendingOnsets: OnsetEvent[] = []
   private played: PlayedNote[] = []
   private targets: TargetNote[] = []
+  private exercise: Exercise | null = null
+  private bpm = 60
   private phase: SessionPhase = 'idle'
   private startedAt = 0
   private promptIndex = 0
   private matchFrames = 0
-  private exercise: Exercise | null = null
-  private bpm = 60
-  private finishTimer: number | null = null
+  private abandoned = false
 
-  /** Consecutive agreeing frames before a call-and-response prompt is passed. */
-  private static readonly FRAMES_TO_ACCEPT = 3
-
-  constructor(
-    private readonly engine: AudioEngine,
-    private readonly callbacks: SessionCallbacks = {},
-    private readonly options: SessionOptions = { latencyMs: 0 },
-  ) {}
+  constructor(options: PracticeSessionOptions) {
+    this.input = options.input
+    this.createTimeKeeper = options.createTimeKeeper
+    this.callbacks = options.callbacks ?? {}
+    this.latencyMs = options.latencyMs ?? 0
+    this.tailBeats = options.tailBeats ?? DEFAULT_TAIL_BEATS
+    this.settleSeconds = options.settleSeconds ?? DEFAULT_SETTLE_SECONDS
+  }
 
   get currentPhase(): SessionPhase {
     return this.phase
@@ -81,12 +106,13 @@ export class PracticeSession {
     return this.promptIndex
   }
 
-  getMetronome(): Metronome | null {
-    return this.metronome
+  /** Null until a take with a clock is running. */
+  getTimeKeeper(): TimeKeeper | null {
+    return this.timeKeeper
   }
 
   start(exercise: Exercise, bpm: number): void {
-    this.stop()
+    this.teardown()
     this.exercise = exercise
     this.bpm = bpm
     this.targets = expandRepeats(exercise)
@@ -94,71 +120,82 @@ export class PracticeSession {
     this.pendingOnsets = []
     this.promptIndex = 0
     this.matchFrames = 0
+    this.abandoned = false
     this.tracker.reset()
-    this.startedAt = this.engine.now()
+    this.startedAt = this.input.now()
 
-    this.subscribe()
+    this.unsubscribers.push(
+      this.input.onPitch((frame) => this.handlePitch(frame)),
+      this.input.onOnset((onset) => this.handleOnset(onset)),
+    )
+
     if (exercise.mode === 'call-response') {
       this.setPhase('playing')
-      this.callbacks.onPrompt?.(this.targets[0], 0)
+      const first = this.targets[0]
+      if (first) this.callbacks.onPrompt?.(first, 0)
+      else this.finish()
       return
     }
-    this.startMetronome(exercise, bpm)
+    this.startClock(exercise, bpm)
   }
 
+  /**
+   * Abandon the take. Reports what was played so far, which is more useful than
+   * discarding it, and is marked as abandoned so nothing treats it as a
+   * complete performance.
+   */
   stop(): void {
-    this.metronome?.stop()
-    this.metronome = null
-    if (this.finishTimer !== null) window.clearTimeout(this.finishTimer)
-    this.finishTimer = null
-    this.unsubscribers.forEach((off) => off())
-    this.unsubscribers = []
-    if (this.phase !== 'finished') this.setPhase('idle')
-  }
-
-  /** Abandon the take and report what was played up to this point. */
-  finishEarly(): void {
-    if (this.phase === 'idle' || this.phase === 'finished') return
+    if (this.phase === 'idle' || this.phase === 'finished') {
+      this.teardown()
+      return
+    }
+    this.abandoned = true
     this.finish()
   }
 
-  private subscribe(): void {
-    this.unsubscribers.push(
-      this.engine.onPitch((frame) => this.handlePitch(frame)),
-      this.engine.onOnset((onset) => this.handleOnset(onset)),
-    )
+  /** Release everything without reporting a result. */
+  dispose(): void {
+    this.teardown()
+    this.setPhase('idle')
   }
 
-  private startMetronome(exercise: Exercise, bpm: number): void {
-    const context = this.engine.getContext()
-    if (!context) throw new Error('Audio engine is not running')
+  private teardown(): void {
+    if (this.finishTimer !== null) clearTimeout(this.finishTimer)
+    this.finishTimer = null
+    this.timeKeeper?.dispose()
+    this.timeKeeper = null
+    for (const off of this.unsubscribers) off()
+    this.unsubscribers = []
+  }
 
-    const beatsPerBar = exercise.timeSignature[0]
-    this.metronome = new Metronome(context)
-    this.metronome.onBeat = (beat) => this.handleBeat(beat)
-    this.metronome.start({
-      bpm,
-      beatsPerBar,
-      countInBeats: exercise.countInBars * beatsPerBar,
-    })
+  private startClock(exercise: Exercise, bpm: number): void {
+    const keeper = this.createTimeKeeper()
+    keeper.onBeat = (beat) => this.handleBeat(beat)
+    this.timeKeeper = keeper
     this.setPhase('count-in')
+    keeper.start({
+      bpm,
+      beatsPerBar: exercise.timeSignature[0],
+      countInBeats: exercise.countInBars * exercise.timeSignature[0],
+    })
   }
 
   private handleBeat(beat: BeatEvent): void {
     this.callbacks.onBeat?.(beat)
-    if (beat.bodyBeat === 0) this.setPhase('playing')
+    if (this.phase === 'count-in' && beat.bodyBeat >= 0) this.setPhase('playing')
     if (this.phase === 'playing' && beat.bodyBeat >= this.endBeat()) this.scheduleFinish()
   }
 
+  /** Last note's end, plus a tail so a late final note still counts. */
   private endBeat(): number {
     const last = this.targets[this.targets.length - 1]
     if (!last) return 0
-    return last.startBeat + last.durationBeats + (this.options.tailBeats ?? DEFAULT_TAIL_BEATS)
+    return last.startBeat + last.durationBeats + this.tailBeats
   }
 
   private handlePitch(frame: PitchFrame): void {
     this.tracker.push(frame)
-    this.callbacks.onPitch?.(frame, this.tracker)
+    this.callbacks.onPitch?.(frame)
     this.resolvePendingOnsets(frame.time)
     if (this.exercise?.mode === 'call-response') this.checkPrompt(frame)
   }
@@ -171,9 +208,15 @@ export class PracticeSession {
 
   /** An onset is graded once enough frames have arrived to name its pitch. */
   private resolvePendingOnsets(now: number): void {
-    const ready = this.pendingOnsets.filter((onset) => this.tracker.isResolvable(onset.time, now))
-    if (ready.length === 0) return
-    this.pendingOnsets = this.pendingOnsets.filter((onset) => !ready.includes(onset))
+    if (this.pendingOnsets.length === 0) return
+
+    const ready: OnsetEvent[] = []
+    const waiting: OnsetEvent[] = []
+    for (const onset of this.pendingOnsets) {
+      if (this.tracker.isResolvable(onset.time, now)) ready.push(onset)
+      else waiting.push(onset)
+    }
+    this.pendingOnsets = waiting
 
     for (const onset of ready) {
       const resolution = this.tracker.resolve(onset.time)
@@ -188,15 +231,15 @@ export class PracticeSession {
     }
   }
 
-  /** Convert an onset timestamp into a position in body beats, latency-corrected. */
+  /** An onset timestamp as a position in body beats, latency-corrected. */
   private beatOf(onsetTime: number): number {
-    if (!this.metronome) return 0
-    return this.metronome.timeToBodyBeat(onsetTime - this.options.latencyMs / 1000)
+    if (!this.timeKeeper) return 0
+    return this.timeKeeper.timeToBodyBeat(onsetTime - this.latencyMs / 1000)
   }
 
   /**
    * Call and response has no clock: a prompt is passed once the detector has
-   * agreed on the right pitch for several frames running, which rules out the
+   * agreed on the right pitch for several frames running, which stops the
    * transient of a neighbouring string being counted as the answer.
    */
   private checkPrompt(frame: PitchFrame): void {
@@ -209,16 +252,17 @@ export class PracticeSession {
     }
 
     this.matchFrames++
-    if (this.matchFrames < PracticeSession.FRAMES_TO_ACCEPT) return
-
+    if (this.matchFrames < FRAMES_TO_ACCEPT) return
     this.matchFrames = 0
-    this.played.push({
+
+    const played: PlayedNote = {
       beat: this.promptIndex,
       midi: frame.midi,
       cents: frame.cents,
       level: frame.rms,
-    })
-    this.callbacks.onNote?.(this.played[this.played.length - 1], this.promptIndex)
+    }
+    this.played.push(played)
+    this.callbacks.onNote?.(played, this.promptIndex)
     this.promptIndex++
 
     const next = this.targets[this.promptIndex]
@@ -230,13 +274,18 @@ export class PracticeSession {
   private scheduleFinish(): void {
     if (this.finishTimer !== null) return
     this.setPhase('judging')
-    this.finishTimer = window.setTimeout(() => this.finish(), 400)
+    this.finishTimer = setTimeout(() => {
+      this.finishTimer = null
+      this.finish()
+    }, this.settleSeconds * 1000)
   }
 
   private finish(): void {
     const exercise = this.exercise
-    if (!exercise) return
-    this.resolvePendingOnsets(Number.POSITIVE_INFINITY)
+    if (!exercise || this.phase === 'finished') return
+
+    // Anything still pending is graded on what was heard, rather than dropped.
+    this.resolvePendingOnsets(this.input.now() + 1)
 
     const judgments = judgePerformance(this.targets, this.played, this.bpm)
     const result: SessionResult = {
@@ -244,10 +293,11 @@ export class PracticeSession {
       bpm: this.bpm,
       judgments,
       score: scorePerformance(judgments),
-      durationSeconds: Math.max(0, this.engine.now() - this.startedAt),
+      durationSeconds: Math.max(0, this.input.now() - this.startedAt),
+      abandoned: this.abandoned,
     }
 
-    this.stop()
+    this.teardown()
     this.setPhase('finished')
     this.callbacks.onFinish?.(result)
   }
@@ -262,7 +312,7 @@ export class PracticeSession {
 /** Expand an exercise's repeats into one flat, absolute-beat note list. */
 export function expandRepeats(exercise: Exercise): TargetNote[] {
   const repeats = exercise.repeats ?? 1
-  if (repeats <= 1) return exercise.notes
+  if (repeats <= 1 || exercise.notes.length === 0) return exercise.notes
 
   const last = exercise.notes[exercise.notes.length - 1]
   const beatsPerBar = exercise.timeSignature[0]

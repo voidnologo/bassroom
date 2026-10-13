@@ -1,3 +1,5 @@
+import type { TimeKeeper, TimeKeeperOptions } from './contracts'
+
 /**
  * Click track built on the lookahead-scheduler pattern: a timer wakes up every
  * 25 ms and schedules any beat falling in the next 120 ms directly on the audio
@@ -19,7 +21,7 @@ export interface BeatEvent {
 const LOOKAHEAD_MS = 25
 const SCHEDULE_AHEAD_S = 0.12
 
-export class Metronome {
+export class Metronome implements TimeKeeper {
   private context: AudioContext
   private output: GainNode
   private timer: number | null = null
@@ -72,12 +74,7 @@ export class Metronome {
     return this.bpm
   }
 
-  start(options: {
-    bpm: number
-    beatsPerBar: number
-    countInBeats: number
-    startDelay?: number
-  }): number {
+  start(options: TimeKeeperOptions & { startDelay?: number }): number {
     this.stop()
     this.bpm = options.bpm
     this.beatsPerBar = options.beatsPerBar
@@ -93,6 +90,17 @@ export class Metronome {
   stop(): void {
     if (this.timer !== null) window.clearInterval(this.timer)
     this.timer = null
+  }
+
+  /**
+   * Disconnect the output. A take creates a metronome and abandons it; without
+   * this, every take leaves a GainNode wired to the destination for the life of
+   * the AudioContext.
+   */
+  dispose(): void {
+    this.stop()
+    this.onBeat = null
+    this.output.disconnect()
   }
 
   /** Convert an AudioContext timestamp into a position in body beats. */

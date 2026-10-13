@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Metronome } from '../../audio/Metronome'
+import type { AudioEngineApi, TimeKeeper } from '../../audio/contracts'
 import {
   MIN_CALIBRATION_TAPS,
   offsetFromNearestBeat,
@@ -150,13 +150,7 @@ const CALIBRATION_BEATS = 16
  * Without it, every timing judgment is wrong by a fixed amount and the app tells
  * a player who is dead on the beat that they are consistently late.
  */
-function Calibration({
-  engine,
-  enabled,
-}: {
-  engine: ReturnType<typeof useAudio>['engine']
-  enabled: boolean
-}) {
+function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boolean }) {
   const storedLatency = useProgressStore((store) => store.snapshot.profile.inputLatencyMs)
   const setLatencyMs = useProgressStore((store) => store.setLatencyMs)
 
@@ -164,25 +158,22 @@ function Calibration({
   const [taps, setTaps] = useState(0)
   const [result, setResult] = useState<CalibrationResult | null>(null)
   const samplesRef = useRef<CalibrationSample[]>([])
-  const metronomeRef = useRef<Metronome | null>(null)
+  const metronomeRef = useRef<TimeKeeper | null>(null)
 
   const finish = useCallback(() => {
-    metronomeRef.current?.stop()
+    metronomeRef.current?.dispose()
     metronomeRef.current = null
     setRunning(false)
     setResult(summarizeCalibration(samplesRef.current))
   }, [])
 
   const begin = useCallback(() => {
-    const context = engine.getContext()
-    if (!context) return
-
     samplesRef.current = []
     setTaps(0)
     setResult(null)
     setRunning(true)
 
-    const metronome = new Metronome(context)
+    const metronome = engine.createTimeKeeper()
     metronomeRef.current = metronome
     const startTime = metronome.start({ bpm: CALIBRATION_BPM, beatsPerBar: 4, countInBeats: 4 })
     const period = 60 / CALIBRATION_BPM
@@ -207,7 +198,7 @@ function Calibration({
         off()
         finish()
       },
-      (endsAt - context.currentTime + 0.4) * 1000,
+      (endsAt - engine.now() + 0.4) * 1000,
     )
   }, [engine, finish])
 

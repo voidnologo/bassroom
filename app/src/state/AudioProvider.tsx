@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { AudioEngine, type EngineState, type InputDevice } from '../audio/AudioEngine'
+import { AudioEngine } from '../audio/AudioEngine'
+import type { AudioEngineApi, EngineState, InputDeviceInfo } from '../audio/contracts'
 import { CoachService } from '../coach'
 
 /**
@@ -10,10 +11,10 @@ import { CoachService } from '../coach'
  */
 
 interface AudioContextValue {
-  engine: AudioEngine
+  engine: AudioEngineApi
   coach: CoachService
   state: EngineState
-  devices: InputDevice[]
+  devices: InputDeviceInfo[]
   error: string | null
   start: (deviceId?: string) => Promise<void>
   stop: () => Promise<void>
@@ -22,17 +23,28 @@ interface AudioContextValue {
 
 const Context = createContext<AudioContextValue | null>(null)
 
-export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const engineRef = useRef<AudioEngine | null>(null)
+export interface AudioProviderProps {
+  children: React.ReactNode
+  /** Supplied by tests; production builds its own. */
+  engine?: AudioEngineApi
+  coach?: CoachService
+}
+
+export function AudioProvider({
+  children,
+  engine: injected,
+  coach: injectedCoach,
+}: AudioProviderProps) {
+  const engineRef = useRef<AudioEngineApi | null>(null)
   const coachRef = useRef<CoachService | null>(null)
-  engineRef.current ??= new AudioEngine()
-  coachRef.current ??= new CoachService()
+  engineRef.current ??= injected ?? new AudioEngine()
+  coachRef.current ??= injectedCoach ?? new CoachService()
 
   const engine = engineRef.current
   const coach = coachRef.current
 
   const [state, setState] = useState<EngineState>(engine.getState())
-  const [devices, setDevices] = useState<InputDevice[]>([])
+  const [devices, setDevices] = useState<InputDeviceInfo[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => engine.onStateChange(setState), [engine])

@@ -19,19 +19,19 @@ node ../.claude/skills/quality-check/scripts/gates.mjs
 
 `gates.mjs` scans the changed files and exits non-zero on any `fix` finding. Pass `--all` to scan the whole tree, `--base <rev>` to compare against a different base, `--json` for machine output.
 
-| Gate | Rule | Kind |
-|---|---|---|
-| `dsp-purity` — Web Audio or DOM inside `src/audio/dsp/` | AU2 | fix |
-| `ui-audio` — a component creating an audio node | RC4 | fix |
-| `bare-midi` — a MIDI integer in content | MC1 | fix |
-| `provenance` — a song chart with no stated source | MC3 | fix |
-| `test-focus` — `.only` / `.skip` left in a test | TS4 | fix |
-| `test-random` — unseeded `Math.random` in a test | TS8 | fix |
-| `any-type` — `any` in `src/` or `server/` | TY1 | fix |
-| `client-secret` — a literal credential in browser code | CO3 | fix |
-| `console-log` — a log line shipped in `src/` | TY9 | fix |
-| `audio-alloc` — allocation outside a constructor on the audio thread | AU1 | triage |
-| `pitch-math` — what looks like hand-rolled pitch arithmetic | TY7 | triage |
+| Gate                                                                 | Rule | Kind   |
+| -------------------------------------------------------------------- | ---- | ------ |
+| `dsp-purity` — Web Audio or DOM inside `src/audio/dsp/`              | AU2  | fix    |
+| `ui-audio` — a component creating an audio node                      | RC4  | fix    |
+| `bare-midi` — a MIDI integer in content                              | MC1  | fix    |
+| `provenance` — a song chart with no stated source                    | MC3  | fix    |
+| `test-focus` — `.only` / `.skip` left in a test                      | TS4  | fix    |
+| `test-random` — unseeded `Math.random` in a test                     | TS8  | fix    |
+| `any-type` — `any` in `src/` or `server/`                            | TY1  | fix    |
+| `client-secret` — a literal credential in browser code               | CO3  | fix    |
+| `console-log` — a log line shipped in `src/`                         | TY9  | fix    |
+| `audio-alloc` — allocation outside a constructor on the audio thread | AU1  | triage |
+| `pitch-math` — what looks like hand-rolled pitch arithmetic          | TY7  | triage |
 
 Triage means reading the code and deciding. When a triage finding is correct code, say why in your report rather than dropping it silently.
 

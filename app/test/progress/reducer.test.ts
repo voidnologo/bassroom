@@ -277,7 +277,9 @@ describe('probes and self-estimation', () => {
   })
 
   it('marks a take played with the feedback off as a probe', () => {
-    expect(applyAttempt(createSnapshot(DAY_ONE), input({ isProbe: true })).attempt.isProbe).toBe(true)
+    expect(applyAttempt(createSnapshot(DAY_ONE), input({ isProbe: true })).attempt.isProbe).toBe(
+      true,
+    )
   })
 
   it('reports nothing for retention until a probe has been played', () => {
@@ -299,13 +301,19 @@ describe('probes and self-estimation', () => {
 
   it('scores a correct self-estimate as correct', () => {
     const dragging = score(80, { meanTimingErrorMs: 80 })
-    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: dragging, selfEstimate: 'behind' }))
+    const result = applyAttempt(
+      createSnapshot(DAY_ONE),
+      input({ score: dragging, selfEstimate: 'behind' }),
+    )
     expect(result.attempt.estimateWasRight).toBe(true)
   })
 
   it('scores a wrong self-estimate as wrong', () => {
     const dragging = score(80, { meanTimingErrorMs: 80 })
-    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: dragging, selfEstimate: 'ahead' }))
+    const result = applyAttempt(
+      createSnapshot(DAY_ONE),
+      input({ score: dragging, selfEstimate: 'ahead' }),
+    )
     expect(result.attempt.estimateWasRight).toBe(false)
   })
 

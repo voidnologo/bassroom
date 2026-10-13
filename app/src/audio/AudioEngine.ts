@@ -1,4 +1,7 @@
 import { centsFromNearestNote } from '../music/notes'
+export type { EngineState, InputDeviceInfo, InputDeviceInfo as InputDevice } from './contracts'
+import type { AudioEngineApi, EngineState, InputDeviceInfo, TimeKeeper } from './contracts'
+import { Metronome } from './Metronome'
 
 export interface PitchFrame {
   /** AudioContext time of the analysis window. */
@@ -15,11 +18,6 @@ export interface PitchFrame {
 export interface OnsetEvent {
   time: number
   level: number
-}
-
-export interface InputDevice {
-  deviceId: string
-  label: string
 }
 
 export interface EngineOptions {
@@ -39,8 +37,6 @@ type PitchListener = (frame: PitchFrame) => void
 type OnsetListener = (event: OnsetEvent) => void
 type StateListener = (state: EngineState) => void
 
-export type EngineState = 'idle' | 'starting' | 'running' | 'error'
-
 const WORKLET_URL = '/pitch-processor.js'
 
 /**
@@ -48,7 +44,7 @@ const WORKLET_URL = '/pitch-processor.js'
  * worklet. Everything above this layer deals in PitchFrames and OnsetEvents and
  * never touches Web Audio directly, which keeps the practice engine testable.
  */
-export class AudioEngine {
+export class AudioEngine implements AudioEngineApi {
   private context: AudioContext | null = null
   private stream: MediaStream | null = null
   private worklet: AudioWorkletNode | null = null
@@ -89,6 +85,16 @@ export class AudioEngine {
   }
 
   /**
+   * A beat clock bound to this engine's context. Created here because two
+   * AudioContexts would mean two clocks, and the second one would make every
+   * timing judgment wrong.
+   */
+  createTimeKeeper(volume?: number): TimeKeeper {
+    if (!this.context) throw new Error('Audio engine is not running; call start() first')
+    return new Metronome(this.context, volume)
+  }
+
+  /**
    * Reported round-trip latency, in seconds. Chrome fills these in for most
    * interfaces; where it does not, the manual tap calibration in
    * `audio/latency.ts` takes over.
@@ -100,7 +106,7 @@ export class AudioEngine {
     return base + output
   }
 
-  async listInputDevices(): Promise<InputDevice[]> {
+  async listInputDevices(): Promise<InputDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
     return devices
       .filter((device) => device.kind === 'audioinput')

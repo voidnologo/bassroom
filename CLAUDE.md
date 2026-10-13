@@ -29,25 +29,25 @@ npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/wor
 
 ## If you're working on X, read Y
 
-| Area | Paths | Rules |
-|---|---|---|
-| Pitch/onset algorithms, the worklet | `src/audio/dsp/**`, `src/audio/worklet/**` | [audio-thread.md](.claude/rules/audio-thread.md) |
-| AudioEngine, Metronome, calibration | `src/audio/*.ts` | [audio-thread.md](.claude/rules/audio-thread.md) |
-| Exercises, songs, curriculum | `src/content/**` | [music-content.md](.claude/rules/music-content.md) |
-| Screens and components | `src/ui/**` | [react-ui.md](.claude/rules/react-ui.md) |
-| Judging, ladders, scoring, progress | `src/engine/**`, `src/progress/**` | [typescript-style.md](.claude/rules/typescript-style.md) |
-| The AI coach | `src/coach/**`, `server/**` | [coach-contract.md](.claude/rules/coach-contract.md) |
+| Area                                | Paths                                      | Rules                                                    |
+| ----------------------------------- | ------------------------------------------ | -------------------------------------------------------- |
+| Pitch/onset algorithms, the worklet | `src/audio/dsp/**`, `src/audio/worklet/**` | [audio-thread.md](.claude/rules/audio-thread.md)         |
+| AudioEngine, Metronome, calibration | `src/audio/*.ts`                           | [audio-thread.md](.claude/rules/audio-thread.md)         |
+| Exercises, songs, curriculum        | `src/content/**`                           | [music-content.md](.claude/rules/music-content.md)       |
+| Screens and components              | `src/ui/**`                                | [react-ui.md](.claude/rules/react-ui.md)                 |
+| Judging, ladders, scoring, progress | `src/engine/**`, `src/progress/**`         | [typescript-style.md](.claude/rules/typescript-style.md) |
+| The AI coach                        | `src/coach/**`, `server/**`                | [coach-contract.md](.claude/rules/coach-contract.md)     |
 
 ### Cross-cutting rules
 
-| Rule | Covers |
-|---|---|
-| [typescript-style.md](.claude/rules/typescript-style.md) | types, naming, module boundaries, function design |
-| [complexity.md](.claude/rules/complexity.md) | the complexity and nesting budgets, and that they are not to be raised |
-| [testing-standards.md](.claude/rules/testing-standards.md) | what a test must be able to fail for |
-| [minimal-comments.md](.claude/rules/minimal-comments.md) | what a comment may say |
-| [system-stewardship.md](.claude/rules/system-stewardship.md) | how far to clean up around a change |
-| [pr-standards.md](.claude/rules/pr-standards.md) | commits and pull requests |
+| Rule                                                         | Covers                                                                 |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [typescript-style.md](.claude/rules/typescript-style.md)     | types, naming, module boundaries, function design                      |
+| [complexity.md](.claude/rules/complexity.md)                 | the complexity and nesting budgets, and that they are not to be raised |
+| [testing-standards.md](.claude/rules/testing-standards.md)   | what a test must be able to fail for                                   |
+| [minimal-comments.md](.claude/rules/minimal-comments.md)     | what a comment may say                                                 |
+| [system-stewardship.md](.claude/rules/system-stewardship.md) | how far to clean up around a change                                    |
+| [pr-standards.md](.claude/rules/pr-standards.md)             | commits and pull requests                                              |
 
 ### Skills to run
 
@@ -56,17 +56,17 @@ npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/wor
 
 ## Where new code goes
 
-| Layer | Holds | Must not |
-|---|---|---|
-| `src/audio/dsp/` | Pure signal processing. No Web Audio types. | Allocate inside a per-sample or per-block method (AU1). Reference `window`, `document`, or `AudioContext`. |
-| `src/audio/worklet/` | The AudioWorkletProcessor and its message contract. | Contain an algorithm. It is plumbing; the algorithm goes in `dsp/` where tests reach it (AU4). |
-| `src/audio/` | Web Audio ownership: stream, context, nodes, scheduling. | Leak an `AudioNode` or `AudioContext` to a caller above it (AU7). |
-| `src/music/` | Pitch arithmetic, fretboard geometry, content types. | Import from `audio/`, `engine/`, `ui/`, or `content/`. |
-| `src/content/` | Exercises, songs, curriculum. Data, not logic. | Contain a bare MIDI integer (MC1) or a transcription without provenance (MC3). |
-| `src/engine/` | Judging, scoring, tempo progression. Pure functions. | Import from `ui/` or `audio/`. Read or write storage. |
-| `src/progress/` | Mastery, scheduling, gamification, persistence. | Contain judging logic (that is `engine/`). |
-| `src/coach/` | Feedback providers behind one interface. | Hold a provider's API key or call a provider directly from the browser (CO3). |
-| `src/ui/` | React components and screens. | Create audio nodes (RC4). Hold music theory (RC6). |
+| Layer                | Holds                                                    | Must not                                                                                                   |
+| -------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `src/audio/dsp/`     | Pure signal processing. No Web Audio types.              | Allocate inside a per-sample or per-block method (AU1). Reference `window`, `document`, or `AudioContext`. |
+| `src/audio/worklet/` | The AudioWorkletProcessor and its message contract.      | Contain an algorithm. It is plumbing; the algorithm goes in `dsp/` where tests reach it (AU4).             |
+| `src/audio/`         | Web Audio ownership: stream, context, nodes, scheduling. | Leak an `AudioNode` or `AudioContext` to a caller above it (AU7).                                          |
+| `src/music/`         | Pitch arithmetic, fretboard geometry, content types.     | Import from `audio/`, `engine/`, `ui/`, or `content/`.                                                     |
+| `src/content/`       | Exercises, songs, curriculum. Data, not logic.           | Contain a bare MIDI integer (MC1) or a transcription without provenance (MC3).                             |
+| `src/engine/`        | Judging, scoring, tempo progression. Pure functions.     | Import from `ui/` or `audio/`. Read or write storage.                                                      |
+| `src/progress/`      | Mastery, scheduling, gamification, persistence.          | Contain judging logic (that is `engine/`).                                                                 |
+| `src/coach/`         | Feedback providers behind one interface.                 | Hold a provider's API key or call a provider directly from the browser (CO3).                              |
+| `src/ui/`            | React components and screens.                            | Create audio nodes (RC4). Hold music theory (RC6).                                                         |
 
 ## Keeping the music right
 

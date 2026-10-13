@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AudioProvider, useAudio } from '../state/AudioProvider'
+import { AudioProvider, useAudio, type AudioProviderProps } from '../state/AudioProvider'
 import { useProgressStore } from '../state/progressStore'
 import { Dashboard } from './screens/Dashboard'
 import { Path } from './screens/Path'
@@ -19,9 +19,9 @@ const NAV: Array<{ id: ScreenId; label: string }> = [
   { id: 'settings', label: 'Settings' },
 ]
 
-export function App() {
+export function App({ engine, coach }: Omit<AudioProviderProps, 'children'> = {}) {
   return (
-    <AudioProvider>
+    <AudioProvider engine={engine} coach={coach}>
       <Shell />
     </AudioProvider>
   )

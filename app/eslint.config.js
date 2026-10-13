@@ -63,9 +63,15 @@ export default typescript.config(
   },
 
   {
-    files: ['test/**/*.ts'],
+    // Tests are long by nature: a describe block is a list of cases, not a
+    // function with branching logic.
+    files: ['test/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.node } },
-    rules: { 'max-lines-per-function': 'off', 'max-nested-callbacks': 'off' },
+    rules: {
+      'max-lines-per-function': 'off',
+      'max-nested-callbacks': 'off',
+      'max-params': ['error', 4],
+    },
   },
 
   {
