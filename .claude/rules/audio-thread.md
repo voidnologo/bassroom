@@ -1,0 +1,23 @@
+---
+paths: ["app/src/audio/**"]
+---
+
+# Audio
+
+The audio thread runs on a hard real-time deadline: it must produce 128 samples every 2.7 ms at 48 kHz, and missing that deadline is an audible dropout, not a slow frame. Most rules here exist for that reason. The rest exist because timing feedback is only worth giving if it is honest.
+
+**Guide:** [docs/audio-pipeline.md](../../docs/audio-pipeline.md)
+
+| ID | Rule | Reason | Enforcement |
+|---|---|---|---|
+| AU1 | A method called per sample or per block MUST NOT allocate. Buffers are allocated in the constructor and reused. | A garbage collection pause on the audio thread is a dropout, and dropouts corrupt both pitch and timing. | `script: gates.mjs::scanAudioAllocations` |
+| AU2 | DSP classes MUST NOT reference `AudioContext`, `AudioWorkletNode`, `window`, or `document`. | They are tested in plain Node; a Web Audio reference makes the algorithm untestable. | `script: gates.mjs::scanDspWebAudio` |
+| AU3 | Every DSP class MUST have a `reset()` that returns it to its constructed state. | Restarting an exercise must not inherit envelope or filter state from the last take. | `test: test/dsp/*.test.ts` |
+| AU4 | `src/audio/worklet/` MUST contain only plumbing. An algorithm goes in `src/audio/dsp/`. | The worklet cannot be unit tested; anything inside it is untested by construction. | review |
+| AU5 | The postMessage contract between threads MUST be expressed as shared types in `worklet/messages.ts`. | Both sides compile against it, so a shape change fails the build rather than failing silently at runtime. | `lint: tsc` |
+| AU6 | Pitch detection MUST take the first YIN dip below threshold, never the global minimum. | The global minimum sits at twice the true period often enough to be the main source of octave errors on the low strings. | `test: test/dsp/yin.test.ts` |
+| AU7 | `AudioNode` and `AudioContext` instances MUST NOT escape `src/audio/`. Callers receive `PitchFrame` and `OnsetEvent`. | Everything above the audio layer stays testable without a browser. | review |
+| AU8 | `getUserMedia` constraints MUST disable `echoCancellation`, `noiseSuppression`, and `autoGainControl`. | All three are tuned for speech and will gate, duck, or pitch-warp a bass into uselessness. | `test: test/audio/*.test.ts` |
+| AU9 | Timing judgments MUST be corrected by the measured input latency before being shown to the player. | Uncorrected, the app tells a player who is on the beat that they are consistently late. | review |
+| AU10 | Scheduling MUST use `AudioContext.currentTime` and the lookahead pattern, never `setInterval` alone for beat placement. | `setInterval` jitter is tens of milliseconds, which is larger than the window that separates "perfect" from "late". | review |
+| AU11 | An analysis window MUST hold at least two periods of the lowest frequency it claims to detect, and the constructor MUST reject a buffer that does not. | Clamping instead of rejecting silently raises the lowest detectable note, which on a bass means quietly losing the open E string. | `test: test/dsp/yin.test.ts` |
