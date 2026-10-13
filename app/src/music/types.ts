@@ -12,6 +12,7 @@ export type SkillId =
   | 'note-names-d-g'
   | 'quarter-notes'
   | 'eighth-notes'
+  | 'sixteenth-notes'
   | 'rests-and-muting'
   | 'dotted-rhythms'
   | 'major-scale'
@@ -22,19 +23,21 @@ export type SkillId =
   | 'melody-playing'
   | 'repertoire'
 
+export type TimeSignature = readonly [beats: number, beatUnit: number]
+
 /** A single thing the learner is asked to play. */
 export interface TargetNote {
-  /** Pitch as MIDI note number. */
+  /** Pitch as a MIDI note number, derived from `position` when content is authored. */
   midi: number
-  /** Where the exercise wants it played. Omit to accept any position. */
+  /** Where the arrangement wants it played. */
   position?: Position
-  /** Onset, in beats from the start of the exercise body (after the count-in). */
+  /** Onset in beats from the start of the exercise body, after the count-in. */
   startBeat: number
-  /** Written length in beats. Used for display and for muting/rest drills. */
+  /** Written length in beats. Drives display, and rest and muting drills. */
   durationBeats: number
-  /** Fretting-hand finger the lesson is teaching for this note. */
+  /** Fretting-hand finger this lesson is teaching for the note. */
   finger?: 1 | 2 | 3 | 4
-  /** Lyric or counting syllable shown under the note. */
+  /** Lyric or counting syllable shown beneath the note. */
   label?: string
 }
 
@@ -53,8 +56,8 @@ export interface Exercise {
   instructions: string
   mode: PracticeMode
   skills: SkillId[]
-  timeSignature: [number, number]
-  /** Tempo the exercise is considered "learned" at. */
+  timeSignature: TimeSignature
+  /** Tempo at which the exercise counts as learned. */
   targetBpm: number
   /** Slowest tempo the ladder will drop to. */
   floorBpm: number
@@ -62,9 +65,8 @@ export interface Exercise {
   notes: TargetNote[]
   /** Repeat the note list this many times within one take. */
   repeats?: number
-  /** Shown in the chart as a reference; purely informational. */
   keyCenter?: string
-  /** Free-text technique reminders listed beside the exercise. */
+  /** Technique reminders listed beside the exercise. */
   tips?: string[]
 }
 
@@ -72,12 +74,11 @@ export interface Lesson {
   id: string
   title: string
   summary: string
-  /** Long-form explanation rendered before the first exercise. */
+  /** Long-form explanation shown before the first exercise. */
   briefing: string[]
   exerciseIds: string[]
-  /** Lessons that must reach at least bronze before this one unlocks. */
+  /** Lessons that must reach at least one star before this one unlocks. */
   requires: string[]
-  /** Rough minutes, used by the daily plan builder. */
   estimatedMinutes: number
 }
 
@@ -88,33 +89,48 @@ export interface Unit {
   lessonIds: string[]
 }
 
+export interface SongBar {
+  /** 1-based bar number as printed on the chart. */
+  index: number
+  chord?: string
+  /** Overrides the chart's time signature from this bar onward. */
+  timeSignature?: TimeSignature
+  /** Beats are relative to the start of this bar. */
+  notes: TargetNote[]
+}
+
 export interface SongSection {
   id: string
   name: string
-  /** Index into the song's bar list where this section begins. */
   startBar: number
   endBar: number
   notes?: string
+}
+
+/**
+ * One way to play a song. Charts carry several, from chord roots up to the
+ * full line, so the same song serves as a first attempt and as a destination.
+ */
+export interface Arrangement {
+  id: string
+  name: string
+  description: string
+  /** 1 easiest, 3 the full part. */
+  difficulty: 1 | 2 | 3
+  bars: SongBar[]
 }
 
 export interface SongChart {
   id: string
   title: string
   artist: string
-  /** Where the transcription came from, and how confident it is. */
+  /** Where these notes came from, and how much to trust them. Required: MC3. */
   provenance: string
   keyCenter: string
-  timeSignature: [number, number]
+  timeSignature: TimeSignature
   targetBpm: number
-  bars: SongBar[]
+  floorBpm: number
   sections: SongSection[]
-  /** Exercises that break the song into learnable pieces. */
-  exerciseIds: string[]
+  arrangements: Arrangement[]
   performanceNotes: string[]
-}
-
-export interface SongBar {
-  index: number
-  chord?: string
-  notes: TargetNote[]
 }
