@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PITCH_TRACKER_OPTIONS, PitchTracker } from '../../src/engine/PitchTracker'
-import type { PitchFrame } from '../../src/audio/AudioEngine'
+import type { PitchFrame } from '../../src/audio/contracts'
+
 import { parseNote } from '../../src/music/notes'
 
 const C2 = parseNote('C2')

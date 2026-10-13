@@ -1,6 +1,3 @@
-import type { OnsetEvent, PitchFrame } from './AudioEngine'
-import type { BeatEvent } from './Metronome'
-
 /**
  * What the practice engine needs from the audio layer, and nothing more.
  *
@@ -9,6 +6,40 @@ import type { BeatEvent } from './Metronome'
  * be driven by handing it synthetic frames and beats. It also means the audio
  * layer can be replaced without the engine noticing.
  */
+
+export interface PitchFrame {
+  /**
+   * Centre of the audio this reading describes, on the AudioContext clock -
+   * not the moment the analysis ran. A reading covers `windowSeconds` of audio
+   * either side of it.
+   */
+  time: number
+  /** Length of audio the reading covers, in seconds. */
+  windowSeconds: number
+  frequency: number
+  /** 0..1 confidence from YIN. Below ~0.8 the reading is usually noise. */
+  clarity: number
+  rms: number
+  /** Nearest equal-tempered pitch, or null when nothing is detected. */
+  midi: number | null
+  cents: number
+}
+
+export interface OnsetEvent {
+  time: number
+  level: number
+}
+
+export interface BeatEvent {
+  /** 0-based beat index counted from the very start, including the count-in. */
+  index: number
+  /** AudioContext time the click sounds. */
+  time: number
+  /** True on the downbeat of a bar. */
+  accented: boolean
+  /** Negative during the count-in, 0 at the first beat of the exercise body. */
+  bodyBeat: number
+}
 
 /** A source of pitch readings and note attacks, on a shared clock. */
 export interface AudioInput {

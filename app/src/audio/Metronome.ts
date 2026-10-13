@@ -1,4 +1,5 @@
 import type { TimeKeeper, TimeKeeperOptions } from './contracts'
+import type { BeatEvent } from './contracts'
 
 /**
  * Click track built on the lookahead-scheduler pattern: a timer wakes up every
@@ -6,17 +7,6 @@ import type { TimeKeeper, TimeKeeperOptions } from './contracts'
  * clock. setInterval alone is far too jittery to play along with; the audio
  * clock is sample-accurate.
  */
-
-export interface BeatEvent {
-  /** 0-based beat index counted from the very start, including the count-in. */
-  index: number
-  /** AudioContext time the click sounds. */
-  time: number
-  /** True on the downbeat of a bar. */
-  accented: boolean
-  /** Negative during the count-in, 0 at the first beat of the exercise body. */
-  bodyBeat: number
-}
 
 const LOOKAHEAD_MS = 25
 const SCHEDULE_AHEAD_S = 0.12

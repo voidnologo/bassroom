@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PitchFrame } from '../../audio/AudioEngine'
+import type { PitchFrame } from '../../audio/contracts'
+
 import { buildTelemetry } from '../../coach'
 import type { CoachFeedback, TakeTelemetry } from '../../coach/types'
 import type { Verdict } from '../../engine/judge'

@@ -63,8 +63,9 @@ npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/wor
 | `src/audio/`         | Web Audio ownership: stream, context, nodes, scheduling. | Leak an `AudioNode` or `AudioContext` to a caller above it (AU7).                                          |
 | `src/music/`         | Pitch arithmetic, fretboard geometry, content types.     | Import from `audio/`, `engine/`, `ui/`, or `content/`.                                                     |
 | `src/content/`       | Exercises, songs, curriculum. Data, not logic.           | Contain a bare MIDI integer (MC1) or a transcription without provenance (MC3).                             |
-| `src/engine/`        | Judging, scoring, tempo progression. Pure functions.     | Import from `ui/` or `audio/`. Read or write storage.                                                      |
+| `src/engine/`        | Judging, scoring, tempo progression. Pure functions.     | Import from `ui/`, or from `audio/` beyond `audio/contracts`. Read or write storage.                       |
 | `src/progress/`      | Mastery, scheduling, gamification, persistence.          | Contain judging logic (that is `engine/`).                                                                 |
+| `src/state/`         | The zustand store, and the app-wide service wiring.      | Import from `ui/`. Contain judging or progress rules.                                                      |
 | `src/coach/`         | Feedback providers behind one interface.                 | Hold a provider's API key or call a provider directly from the browser (CO3).                              |
 | `src/ui/`            | React components and screens.                            | Create audio nodes (RC4). Hold music theory (RC6).                                                         |
 

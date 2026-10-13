@@ -42,8 +42,24 @@ const RULES: LayerRule[] = [
   },
   {
     layer: 'engine',
-    forbidden: ['ui', 'state', 'content', 'coach', 'progress'],
-    reason: 'judging is pure and must not reach into storage or the UI',
+    forbidden: [
+      'ui',
+      'state',
+      'content',
+      'coach',
+      'progress',
+      'audio/AudioEngine',
+      'audio/Metronome',
+      'audio/latency',
+      'audio/dsp',
+      'audio/worklet',
+    ],
+    reason: 'judging is pure, and reaches the audio layer only through audio/contracts',
+  },
+  {
+    layer: 'state',
+    forbidden: ['ui'],
+    reason: 'the store and the service wiring are what the UI depends on, not the reverse',
   },
   {
     layer: 'progress',
@@ -88,7 +104,7 @@ function importsOf(file: string): string[] {
 describe.each(RULES)('$layer', ({ layer, forbidden, reason }) => {
   const files = sourceFilesUnder(layer)
 
-  it('has source files to check', () => {
+  it('still has source files, so the rule below is not vacuous', () => {
     expect(files.length).toBeGreaterThan(0)
   })
 

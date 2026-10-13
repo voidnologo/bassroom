@@ -1,6 +1,6 @@
-import type { OnsetEvent, PitchFrame } from '../audio/AudioEngine'
+import type { BeatEvent, OnsetEvent, PitchFrame } from '../audio/contracts'
+
 import type { AudioInput, TimeKeeper, TimeKeeperFactory } from '../audio/contracts'
-import type { BeatEvent } from '../audio/Metronome'
 import type { Exercise, TargetNote } from '../music/types'
 import {
   judgePerformance,

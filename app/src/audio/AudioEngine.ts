@@ -6,30 +6,8 @@ import {
   PITCH_PROCESSOR_NAME,
   type WorkletMessage,
 } from './worklet/messages'
+import type { OnsetEvent, PitchFrame } from './contracts'
 import { Metronome } from './Metronome'
-
-export interface PitchFrame {
-  /**
-   * Centre of the audio this reading describes, on the AudioContext clock -
-   * not the moment the analysis ran. A reading covers `windowSeconds` of audio
-   * either side of it.
-   */
-  time: number
-  /** Length of audio the reading covers, in seconds. */
-  windowSeconds: number
-  frequency: number
-  /** 0..1 confidence from YIN. Below ~0.8 the reading is usually noise. */
-  clarity: number
-  rms: number
-  /** Nearest equal-tempered pitch, or null when nothing is detected. */
-  midi: number | null
-  cents: number
-}
-
-export interface OnsetEvent {
-  time: number
-  level: number
-}
 
 export interface EngineOptions {
   /** Clarity needed to start reporting a pitch. */

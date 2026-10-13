@@ -1,4 +1,4 @@
-import type { PitchFrame } from '../audio/AudioEngine'
+import type { PitchFrame } from '../audio/contracts'
 
 /**
  * Decides which note an attack was.

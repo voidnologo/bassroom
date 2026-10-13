@@ -1,6 +1,6 @@
-import type { OnsetEvent, PitchFrame } from '../../src/audio/AudioEngine'
+import type { BeatEvent, OnsetEvent, PitchFrame } from '../../src/audio/contracts'
+
 import type { AudioInput, TimeKeeper, TimeKeeperOptions } from '../../src/audio/contracts'
-import type { BeatEvent } from '../../src/audio/Metronome'
 
 /**
  * Test doubles for the audio layer.
