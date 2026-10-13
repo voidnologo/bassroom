@@ -69,7 +69,8 @@ export default typescript.config(
   },
 
   {
-    files: ['server/**/*.mjs', '*.config.{js,ts}'],
+    // Tooling talks to a person at a terminal, which is what console is for.
+    files: ['server/**/*.mjs', 'scripts/**', '*.config.{js,ts}'],
     languageOptions: { globals: { ...globals.node } },
     rules: { 'no-console': 'off', '@typescript-eslint/no-explicit-any': 'off' },
   },

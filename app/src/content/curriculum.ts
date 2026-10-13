@@ -1,0 +1,220 @@
+import type { Exercise, Lesson, Unit } from '../music/types'
+import { DRILLS } from './drills'
+import { MELODIES } from './melodies'
+import { SONG_EXERCISES } from './songExercises'
+
+/**
+ * The path from never having held a bass to playing both target songs.
+ *
+ * Two things shape the ordering. Material from the songs appears as early as it
+ * can be played, so progress is always visibly toward something the learner
+ * actually wants rather than toward a distant payoff. And each unit introduces
+ * one new demand at a time: the plucking hand before the fretting hand, pitch
+ * before rhythm, rhythm before both at once.
+ */
+
+export const ALL_EXERCISES: Exercise[] = [...DRILLS, ...MELODIES, ...SONG_EXERCISES]
+
+const EXERCISES_BY_ID = new Map(ALL_EXERCISES.map((item) => [item.id, item]))
+
+export function exerciseById(id: string): Exercise | undefined {
+  return EXERCISES_BY_ID.get(id)
+}
+
+export const LESSONS: Lesson[] = [
+  {
+    id: 'setup',
+    title: 'Get set up',
+    summary:
+      'Tune the bass, check the app can hear you, and measure the delay through your interface.',
+    briefing: [
+      'Plug the bass into input 1 on the Scarlett and turn the gain up until the halo ring glows green when you play hard. If it flashes red, the signal is clipping and the pitch detector will struggle.',
+      "Use the interface's own direct monitoring to hear yourself, not the app. It is faster, and it keeps the browser from feeding sound back into the input.",
+      'Latency calibration measures how long a note takes to travel from the string to this app. Without it, the app will tell you that you are consistently late when you are not.',
+    ],
+    exerciseIds: [],
+    requires: [],
+    estimatedMinutes: 10,
+  },
+  {
+    id: 'plucking-hand',
+    title: 'The plucking hand',
+    summary: 'Find each string by feel, and make a sound with a consistent tone.',
+    briefing: [
+      'Rest your thumb on the pickup. It anchors the hand and mutes strings you are not playing, which matters more than it sounds like it should.',
+      'Pluck with the pad of the finger, about halfway between the first joint and the tip, and pull slightly toward your palm rather than straight up.',
+      'Alternate index and middle from the very first session. Using one finger for everything feels easier now and caps your speed permanently.',
+    ],
+    exerciseIds: [
+      'open-string-find',
+      'open-strings-quarter',
+      'alternating-fingers',
+      'string-crossing',
+    ],
+    requires: ['setup'],
+    estimatedMinutes: 15,
+  },
+  {
+    id: 'fretting-hand',
+    title: 'The fretting hand',
+    summary: 'Press cleanly, use all four fingers, and build a hand position you can keep.',
+    briefing: [
+      'Press just behind the fret. Further back and the note buzzes; on top of the fret it chokes. Just behind takes the least effort and gives the cleanest sound.',
+      'Thumb flat on the back of the neck, roughly opposite the second finger. Hooking it over the top feels natural and takes the little finger out of reach.',
+      'One finger per fret: index, middle, ring and little finger cover four consecutive frets without the hand moving. This is the position everything else is built on.',
+      'Your little finger is weak. That is normal and it is why it needs using, not avoiding.',
+    ],
+    exerciseIds: ['first-fretted-notes', 'one-finger-per-fret-e', 'one-finger-per-fret-descending'],
+    requires: ['plucking-hand'],
+    estimatedMinutes: 20,
+  },
+  {
+    id: 'the-neck',
+    title: 'Finding notes',
+    summary: 'Learn where the notes are on the two strings your songs live on.',
+    briefing: [
+      'The dots mark frets 3, 5, 7 and 9, with a double dot at 12. They are the only landmarks you get, so learn to find them without looking.',
+      'Fret 5 of any string is the same pitch as the next string open. That is how the bass is tuned and it is a free way to check yourself.',
+    ],
+    exerciseIds: ['notes-on-e-string', 'notes-on-a-string'],
+    requires: ['fretting-hand'],
+    estimatedMinutes: 15,
+  },
+  {
+    id: 'rhythm',
+    title: 'Playing in time',
+    summary: 'Quarter notes, eighth notes, rests, and the subdivision Angel is built on.',
+    briefing: [
+      'Count out loud. Counting in your head is a different and considerably harder skill, and it hides mistakes from you.',
+      'Slow is not a lesser version of fast. A passage played accurately at half speed is practice; the same passage played badly at full speed is just repetition of the mistake.',
+      'A rest is a thing you do, not a thing you stop doing. Muting a string deliberately is a technique with its own feel.',
+    ],
+    exerciseIds: ['quarter-and-rest', 'eighth-note-pulse', 'sixteenth-split'],
+    requires: ['the-neck'],
+    estimatedMinutes: 20,
+  },
+  {
+    id: 'shapes',
+    title: 'Shapes that move',
+    summary:
+      'Octaves, root and fifth, and the first scales — patterns your hand learns once and uses everywhere.',
+    briefing: [
+      'The bass is tuned in equal fourths, so a shape keeps its sound anywhere you move it. Learn the shape, not the note names, and the note names follow.',
+      'Root and fifth is the single most used pair of notes in bass playing. One string over, two frets up.',
+      'The octave is the same move with the little finger: one string over, two frets up, from a root on the E or A string.',
+    ],
+    exerciseIds: [
+      'two-note-shuttle',
+      'octave-shape',
+      'root-and-fifth',
+      'major-scale-f',
+      'minor-scale-c',
+    ],
+    requires: ['rhythm'],
+    estimatedMinutes: 25,
+  },
+  {
+    id: 'melodies',
+    title: 'First tunes',
+    summary: 'Three melodies you already know by ear, which makes a wrong note obvious.',
+    briefing: [
+      'Playing something you know the sound of is how you learn to hear your own mistakes. If it sounds wrong, it is wrong, and you will not need the app to tell you.',
+      'Each of these stays in one hand position. The work is the melody and the timing, not moving around the neck.',
+    ],
+    exerciseIds: ['melody-ode-to-joy', 'melody-twinkle', 'melody-happy-birthday'],
+    requires: ['shapes'],
+    estimatedMinutes: 25,
+  },
+  {
+    id: 'angel-riff',
+    title: 'Angel — the riff',
+    summary: 'Two notes, six minutes, and all of it rhythm.',
+    briefing: [
+      'The entire bass part of Angel is C and the D a tone above it. There is almost no fingering to learn, which is exactly why it is a good first song: everything you have to think about is rhythm.',
+      'Build it in stages. Eight even eighths first. Then the lift to D on the last eighth. Then the sixteenth split on beat two, which is what gives the line its lope.',
+      'The drums are in half time, so the track feels like 54 bpm while the bass runs eighths at 107. Count eighths against the metronome and do not try to feel it as quarter notes.',
+    ],
+    exerciseIds: [
+      'song-angel-pulse',
+      'song-angel-with-answer',
+      'song-angel-full',
+      'song-angel-full-low',
+    ],
+    requires: ['rhythm'],
+    estimatedMinutes: 30,
+  },
+  {
+    id: 'hymn-roots',
+    title: 'This Is the Christ — roots',
+    summary: 'One note per chord, through the meter change and the key change.',
+    briefing: [
+      'The verse is in three-four in E-flat. At bar 12 the meter becomes four-four and the key lifts a whole tone into F for the chorus. That lift, arriving on the words the hymn is named for, is the point of the piece, and your part makes the move with it.',
+      'Roots alone is not a lesser version of the part. It is what a bass player would actually play behind congregational singing, and it is the version to be able to play first.',
+      'Hold each note for its written value instead of re-plucking every beat. A hymn bass line is mostly sustain.',
+      'The scale drill first: E-flat major is the key the verse is in, and every note in the verse comes from it.',
+    ],
+    exerciseIds: [
+      'eb-major-scale',
+      'song-this-is-the-christ-roots-verse',
+      'song-this-is-the-christ-roots-chorus',
+      'song-this-is-the-christ-roots',
+    ],
+    requires: ['shapes'],
+    estimatedMinutes: 30,
+  },
+  {
+    id: 'hymn-full',
+    title: 'This Is the Christ — the full line',
+    summary: "The hymn's own bass line, one note per beat.",
+    briefing: [
+      "This is the published piano left hand, moved into the bass guitar's register. It is the part as written, not an arrangement.",
+      'Bars 4 and 5 are the ones to isolate: A-flat down to G down to F, then G back up through A to B. They are the only stepwise motion in the verse and they are what makes the line sound like a bass part.',
+      'Bar 15 beat 3 is the only sharp in the entire hymn. It is the third of D7 and it leans into the G that follows.',
+    ],
+    exerciseIds: [
+      'song-this-is-the-christ-full-verse',
+      'song-this-is-the-christ-full-chorus',
+      'song-this-is-the-christ-full',
+    ],
+    requires: ['hymn-roots', 'melodies'],
+    estimatedMinutes: 40,
+  },
+]
+
+export const UNITS: Unit[] = [
+  {
+    id: 'foundations',
+    title: 'Foundations',
+    description: 'Both hands, separately, before they have to work together.',
+    lessonIds: ['setup', 'plucking-hand', 'fretting-hand'],
+  },
+  {
+    id: 'fundamentals',
+    title: 'Fundamentals',
+    description: 'Where the notes are, how to stay in time, and the shapes that repeat everywhere.',
+    lessonIds: ['the-neck', 'rhythm', 'shapes'],
+  },
+  {
+    id: 'music',
+    title: 'Playing music',
+    description: 'Tunes you know, so a wrong note is obvious without being told.',
+    lessonIds: ['melodies'],
+  },
+  {
+    id: 'repertoire',
+    title: 'The songs',
+    description: 'The two pieces this whole path is aimed at.',
+    lessonIds: ['angel-riff', 'hymn-roots', 'hymn-full'],
+  },
+]
+
+const LESSONS_BY_ID = new Map(LESSONS.map((lesson) => [lesson.id, lesson]))
+
+export function lessonById(id: string): Lesson | undefined {
+  return LESSONS_BY_ID.get(id)
+}
+
+/** Lessons in the order a learner meets them, flattened across units. */
+export function lessonOrder(): string[] {
+  return UNITS.flatMap((unit) => unit.lessonIds)
+}
