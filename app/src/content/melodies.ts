@@ -19,7 +19,7 @@ export const MELODIES: Exercise[] = [
     title: 'Ode to Joy',
     instructions:
       'Beethoven, 1824. Everything is a quarter note except the end of each phrase. Your hand does not move.',
-    skills: ['melody-playing', 'quarter-notes', 'fretting-basics'],
+    skills: ['melody-playing', 'quarter-notes', 'dotted-rhythms', 'fretting-basics'],
     keyCenter: 'C major',
     targetBpm: 100,
     floorBpm: 45,
@@ -68,7 +68,7 @@ export const MELODIES: Exercise[] = [
     title: 'Happy Birthday',
     instructions:
       'In three-four, and it starts before the bar does: the first two notes are the pickup, on the third beat.',
-    skills: ['melody-playing', 'dotted-rhythms', 'string-crossing'],
+    skills: ['melody-playing', 'string-crossing'],
     keyCenter: 'C major',
     timeSignature: THREE_FOUR,
     targetBpm: 110,

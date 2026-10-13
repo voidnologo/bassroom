@@ -1,4 +1,5 @@
 import type { Position } from './fretboard'
+import type { MeterChange } from './meter'
 
 export type SkillId =
   | 'posture'
@@ -57,6 +58,11 @@ export interface Exercise {
   mode: PracticeMode
   skills: SkillId[]
   timeSignature: TimeSignature
+  /**
+   * Meter changes partway through, for music that does not stay in one.
+   * Beats are relative to the start of the exercise body.
+   */
+  meterChanges?: MeterChange[]
   /** Tempo at which the exercise counts as learned. */
   targetBpm: number
   /** Slowest tempo the ladder will drop to. */

@@ -1,3 +1,4 @@
+import type { MeterChange } from '../music/meter'
 import type { Exercise, PracticeMode, SkillId, TargetNote, TimeSignature } from '../music/types'
 
 /**
@@ -17,6 +18,7 @@ export interface ExerciseInput {
   notes: TargetNote[]
   mode?: PracticeMode
   timeSignature?: TimeSignature
+  meterChanges?: MeterChange[]
   targetBpm?: number
   floorBpm?: number
   countInBars?: number

@@ -301,7 +301,6 @@ describe('parseFeedback', () => {
     ['not an object', 'a string'],
     ['a missing headline', { ...valid, headline: undefined }],
     ['an empty headline', { ...valid, headline: '   ' }],
-    [{ ...valid, observations: [{ ...valid.observations[0], severity: 'urgent' }] }],
     ['an unknown action kind', { ...valid, nextAction: { kind: 'panic', detail: 'x' } }],
     ['a missing action', { ...valid, nextAction: undefined }],
     ['an unknown confidence', { ...valid, confidence: 'certain' }],

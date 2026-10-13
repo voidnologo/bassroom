@@ -76,7 +76,7 @@ export class Metronome implements TimeKeeper {
 
   start(options: TimeKeeperOptions & { startDelay?: number }): number {
     this.stop()
-    this.bpm = options.bpm
+    this.setTempo(options.bpm)
     this.beatsPerBar = options.beatsPerBar
     this.countInBeats = options.countInBeats
     this.nextBeatIndex = 0
@@ -113,11 +113,17 @@ export class Metronome implements TimeKeeper {
   }
 
   private schedule(): void {
-    const horizon = this.context.currentTime + SCHEDULE_AHEAD_S
+    const now = this.context.currentTime
+    const horizon = now + SCHEDULE_AHEAD_S
     while (this.nextBeatTime < horizon) {
       const accented = this.nextBeatIndex % this.beatsPerBar === 0
       const bodyBeat = this.nextBeatIndex - this.countInBeats
-      if (!this.muted) this.click(this.nextBeatTime, accented, bodyBeat < 0)
+      // A throttled timer - a background tab, a muted click track - leaves
+      // beats in the past. Scheduling an oscillator at a past time plays it
+      // immediately, so catching up would fire a burst of every missed beat at
+      // once. The beat is still reported so the take can end.
+      const overdue = this.nextBeatTime < now
+      if (!this.muted && !overdue) this.click(this.nextBeatTime, accented, bodyBeat < 0)
       this.onBeat?.({ index: this.nextBeatIndex, time: this.nextBeatTime, accented, bodyBeat })
       this.nextBeatIndex++
       this.nextBeatTime += this.secondsPerBeat

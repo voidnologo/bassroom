@@ -4,6 +4,7 @@ import {
   SINGLE_DOT_FRETS,
   STANDARD_TUNING,
   STRING_LABELS,
+  midiAt,
   positionsFor,
   type Position,
 } from '../../music/fretboard'
@@ -88,12 +89,13 @@ export function Fretboard(props: FretboardProps) {
     () => (detectedMidi === null ? [] : positionsFor(detectedMidi)),
     [detectedMidi],
   )
-  const isRight = detectedMidi !== null && target !== null && detectedMidi === midiOf(target)
+  const isRight = detectedMidi !== null && target !== null && detectedMidi === midiAt(target)
 
   return (
     <svg
       viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
       width="100%"
+      className="fretboard"
       role="img"
       aria-label={describe(target, detectedMidi)}
     >
@@ -116,7 +118,6 @@ export function Fretboard(props: FretboardProps) {
           {noteName(detectedMidi)} {formatCents(detectedCents)}
         </text>
       )}
-      <FretboardStyles />
     </svg>
   )
 }
@@ -260,26 +261,10 @@ function TargetMarker({
   )
 }
 
-function FretboardStyles() {
-  return (
-    <style>{`
-      .fret-number { fill: var(--text-faint); font-size: 12px; text-anchor: middle; font-family: var(--mono); }
-      .string-label { fill: var(--text-muted); font-size: 14px; font-weight: 600; text-anchor: middle; }
-      .fret-note-name { fill: #7a6a5c; font-size: 10px; text-anchor: middle; font-family: var(--mono); }
-      .target-marker { fill: #06121a; font-size: 15px; font-weight: 700; text-anchor: middle; }
-      .heard-label { fill: var(--text-muted); font-size: 13px; text-anchor: end; font-family: var(--mono); }
-    `}</style>
-  )
-}
-
 function offsetsFor(fret: number, laneHeight: number): number[] {
   if (DOUBLE_DOT_FRETS.includes(fret)) return [-laneHeight * 0.7, laneHeight * 0.7]
   if (SINGLE_DOT_FRETS.includes(fret)) return [0]
   return []
-}
-
-function midiOf(position: Position): number {
-  return STANDARD_TUNING[position.string] + position.fret
 }
 
 function formatCents(cents: number): string {

@@ -10,6 +10,7 @@ function frame(time: number, midi: number | null, overrides: Partial<PitchFrame>
   return {
     time,
     frequency: midi === null ? 0 : 100,
+    windowSeconds: 0,
     clarity: 0.95,
     rms: 0.2,
     midi,
@@ -93,9 +94,26 @@ describe('PitchTracker', () => {
 
   it('knows when it has seen enough to answer', () => {
     const tracker = new PitchTracker()
-    const windowSeconds = DEFAULT_PITCH_TRACKER_OPTIONS.windowMs / 1000
-    expect(tracker.isResolvable(1.0, 1.0 + windowSeconds / 2)).toBe(false)
-    expect(tracker.isResolvable(1.0, 1.0 + windowSeconds + 0.01)).toBe(true)
+    const listenFor = DEFAULT_PITCH_TRACKER_OPTIONS.listenForMs / 1000
+    expect(tracker.isResolvable(1.0, 1.0 + 0.01)).toBe(false)
+    expect(tracker.isResolvable(1.0, 1.0 + listenFor + 0.01)).toBe(true)
+  })
+
+  it('answers as soon as enough post-attack readings have arrived', () => {
+    // Waiting out the full listening window after every note would add a fifth
+    // of a second to feedback that is already settled.
+    const tracker = new PitchTracker()
+    feed(tracker, { from: 1.1, to: 1.3, midi: C2 })
+    expect(tracker.isResolvable(1.0, 1.2)).toBe(true)
+  })
+
+  it('ignores a reading whose window began before the attack', () => {
+    // A reading describes 128 ms of audio around its own timestamp, so one
+    // taken just after an attack is mostly the note before it.
+    const tracker = new PitchTracker()
+    tracker.push(frame(1.02, D2, { windowSeconds: 0.128 }))
+    feed(tracker, { from: 1.1, to: 1.3, midi: C2, overrides: { windowSeconds: 0.128 } })
+    expect(tracker.resolve(1.0).midi).toBe(C2)
   })
 
   it('offers the latest reading for the live display', () => {

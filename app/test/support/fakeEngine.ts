@@ -20,8 +20,10 @@ export class FakeAudioEngine extends FakeAudioInput implements AudioEngineApi {
   public startedWith: string | undefined
   public stopCount = 0
 
+  public resetCount = 0
   private state: EngineState
   private stateListeners = new Set<(state: EngineState) => void>()
+  private unavailableListeners = new Set<(reason: string) => void>()
 
   constructor(initialState: EngineState = 'running') {
     super()
@@ -47,6 +49,21 @@ export class FakeAudioEngine extends FakeAudioInput implements AudioEngineApi {
   onStateChange(listener: (state: EngineState) => void): () => void {
     this.stateListeners.add(listener)
     return () => this.stateListeners.delete(listener)
+  }
+
+  onUnavailable(listener: (reason: string) => void): () => void {
+    this.unavailableListeners.add(listener)
+    return () => this.unavailableListeners.delete(listener)
+  }
+
+  /** Simulate the interface being unplugged mid-take. */
+  goAway(reason = 'unplugged'): void {
+    this.setState('error')
+    for (const listener of [...this.unavailableListeners]) listener(reason)
+  }
+
+  resetAnalysis(): void {
+    this.resetCount++
   }
 
   async listInputDevices(): Promise<InputDeviceInfo[]> {

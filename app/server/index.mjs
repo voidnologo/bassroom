@@ -35,6 +35,7 @@ const MODEL = process.env.BASSROOM_COACH_MODEL ?? 'claude-opus-5-5'
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const ANTHROPIC_VERSION = '2023-06-01'
 const MAX_BODY_BYTES = 2_000_000
+const UPSTREAM_TIMEOUT_MS = 30_000
 
 // ---------------------------------------------------------------------------
 // HTTP plumbing
@@ -49,16 +50,34 @@ function sendJson(response, status, body) {
   response.end(payload)
 }
 
+class RequestError extends Error {
+  constructor(status, message) {
+    super(message)
+    this.status = status
+  }
+}
+
 async function readJsonBody(request) {
   const chunks = []
   let total = 0
   for await (const chunk of request) {
     total += chunk.length
-    if (total > MAX_BODY_BYTES) throw new Error('Request body too large')
+    if (total > MAX_BODY_BYTES) {
+      // Destroy the stream, or the client keeps uploading into a request that
+      // has already failed.
+      request.destroy()
+      throw new RequestError(413, `Body larger than ${MAX_BODY_BYTES} bytes`)
+    }
     chunks.push(chunk)
   }
   if (total === 0) return {}
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+
+  const text = Buffer.concat(chunks).toString('utf8')
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    throw new RequestError(400, `Body was not valid JSON: ${error.message}`)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -66,10 +85,11 @@ async function readJsonBody(request) {
 // ---------------------------------------------------------------------------
 
 function handleStatus(response) {
+  // No filesystem path: the browser does not need it and it discloses the
+  // user's home directory layout.
   sendJson(response, 200, {
     ready: ANTHROPIC_API_KEY !== '',
     model: ANTHROPIC_API_KEY === '' ? null : MODEL,
-    dataDir: SESSIONS_DIR,
   })
 }
 
@@ -93,6 +113,9 @@ async function handleReview(request, response) {
 
   const upstream = await fetch(ANTHROPIC_URL, {
     method: 'POST',
+    // Node's fetch has a connect timeout but no overall deadline, so without
+    // this a hung upstream holds the handler and its socket indefinitely.
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     headers: {
       'content-type': 'application/json',
       'x-api-key': ANTHROPIC_API_KEY,
@@ -117,7 +140,12 @@ async function handleReview(request, response) {
   if (!upstream.ok) {
     const detail = await upstream.text()
     console.error(`Anthropic API ${upstream.status}: ${detail.slice(0, 400)}`)
-    sendJson(response, 502, { error: `Model request failed (${upstream.status})` })
+    // Pass the status through: a rate limit, a rejected key and an overloaded
+    // model all read as 502 otherwise, and the app can say nothing useful.
+    const retryAfter = upstream.headers.get('retry-after')
+    if (retryAfter) response.setHeader('retry-after', retryAfter)
+    const status = [401, 403, 429].includes(upstream.status) ? upstream.status : 502
+    sendJson(response, status, { error: `Model request failed`, upstreamStatus: upstream.status })
     return
   }
 
@@ -156,8 +184,12 @@ export function sessionFileFor(date) {
 
 async function handleRecordTake(request, response) {
   const payload = await readJsonBody(request)
-  if (payload.schemaVersion === undefined) {
-    sendJson(response, 400, { error: 'Telemetry must carry a schemaVersion' })
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+    sendJson(response, 400, { error: 'Expected a telemetry object' })
+    return
+  }
+  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1) {
+    sendJson(response, 400, { error: 'Telemetry must carry an integer schemaVersion' })
     return
   }
 
@@ -210,13 +242,26 @@ const server = createServer(async (request, response) => {
   try {
     await route.handle(request, response)
   } catch (error) {
+    if (response.headersSent) return
+    if (error instanceof RequestError) {
+      sendJson(response, error.status, { error: error.message })
+      return
+    }
     console.error(`${request.method} ${url.pathname} failed:`, error)
-    if (!response.headersSent) sendJson(response, 500, { error: 'Internal error' })
+    sendJson(response, 500, { error: 'Internal error' })
   }
 })
 
 // Importing this file for its helpers must not start a listener.
 if (process.argv[1] && process.argv[1].endsWith('index.mjs')) {
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is already in use. Set BASSROOM_COACH_PORT to another one.`)
+      process.exit(1)
+    }
+    throw error
+  })
+
   server.listen(PORT, HOST, () => {
     const coach = ANTHROPIC_API_KEY === '' ? 'built-in rules only' : `model ${MODEL}`
     console.log(`Bassroom coach server on http://${HOST}:${PORT} (${coach})`)

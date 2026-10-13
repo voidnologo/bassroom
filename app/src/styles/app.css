@@ -105,6 +105,10 @@ a {
   overflow-y: auto;
 }
 
+.engine-badge {
+  margin-top: auto;
+}
+
 .brand {
   display: flex;
   align-items: baseline;
@@ -539,4 +543,10 @@ button.list-item:hover {
   .main {
     padding: 18px;
   }
+}
+
+/* An empty stat should read as "nothing here yet", not as a missing number. */
+.stat-value .faint {
+  font-size: 1.05rem;
+  font-weight: 500;
 }

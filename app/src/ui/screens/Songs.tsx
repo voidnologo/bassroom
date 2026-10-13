@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SONGS } from '../../content/songs'
 import { resolveSignatures } from '../../content/authoring'
-import { SONG_EXERCISE_SPECS } from '../../content/songExercises'
+import { SONG_EXERCISE_SPECS, exerciseId } from '../../content/songExercises'
 import { renderTab } from '../../music/tab'
 import type { SongChart } from '../../music/types'
 import { useProgressStore } from '../../state/progressStore'
@@ -54,7 +54,9 @@ function SongDetail({
 }) {
   const exercises = useProgressStore((store) => store.snapshot.exercises)
   const [arrangementId, setArrangementId] = useState(song.arrangements[0].id)
-  const arrangement = song.arrangements.find((candidate) => candidate.id === arrangementId)!
+  const arrangement =
+    song.arrangements.find((candidate) => candidate.id === arrangementId) ?? song.arrangements[0]
+  if (!arrangement) return null
 
   const bars = resolveSignatures(arrangement.bars, song.timeSignature)
   const tab = renderTab(bars, song.timeSignature, {
@@ -103,11 +105,12 @@ function SongDetail({
 
       <div className="card">
         <h3>Practise it</h3>
+        {relatedExercises.length === 0 && (
+          <p className="muted small">No drills are built from this song yet.</p>
+        )}
         <ul className="clean">
           {relatedExercises.map((spec) => {
-            const id = ['song', spec.songId, spec.arrangementId, spec.sectionId]
-              .filter(Boolean)
-              .join('-')
+            const id = exerciseId(spec)
             return (
               <li key={id}>
                 <button

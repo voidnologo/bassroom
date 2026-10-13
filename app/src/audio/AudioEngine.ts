@@ -1,11 +1,22 @@
 import { centsFromNearestNote } from '../music/notes'
 export type { EngineState, InputDeviceInfo, InputDeviceInfo as InputDevice } from './contracts'
 import type { AudioEngineApi, EngineState, InputDeviceInfo, TimeKeeper } from './contracts'
+import {
+  DEFAULT_PITCH_PROCESSOR_OPTIONS,
+  PITCH_PROCESSOR_NAME,
+  type WorkletMessage,
+} from './worklet/messages'
 import { Metronome } from './Metronome'
 
 export interface PitchFrame {
-  /** AudioContext time of the analysis window. */
+  /**
+   * Centre of the audio this reading describes, on the AudioContext clock -
+   * not the moment the analysis ran. A reading covers `windowSeconds` of audio
+   * either side of it.
+   */
   time: number
+  /** Length of audio the reading covers, in seconds. */
+  windowSeconds: number
   frequency: number
   /** 0..1 confidence from YIN. Below ~0.8 the reading is usually noise. */
   clarity: number
@@ -39,6 +50,11 @@ type StateListener = (state: EngineState) => void
 
 const WORKLET_URL = '/pitch-processor.js'
 
+/** Release a stream acquired for a start that was superseded before it finished. */
+function discard(stream: MediaStream): void {
+  stream.getTracks().forEach((track) => track.stop())
+}
+
 /**
  * Owns the microphone/interface stream, the AudioContext, and the pitch
  * worklet. Everything above this layer deals in PitchFrames and OnsetEvents and
@@ -55,6 +71,9 @@ export class AudioEngine implements AudioEngineApi {
   private stateListeners = new Set<StateListener>()
 
   private state: EngineState = 'idle'
+  /** Incremented by every start and stop, so a superseded start can bail out. */
+  private startGeneration = 0
+  private unavailableListeners = new Set<(reason: string) => void>()
   private options: Required<EngineOptions>
   private holdingPitch = false
   public lastError: string | null = null
@@ -80,10 +99,6 @@ export class AudioEngine implements AudioEngineApi {
     return this.context ? this.context.currentTime : 0
   }
 
-  getContext(): AudioContext | null {
-    return this.context
-  }
-
   /**
    * A beat clock bound to this engine's context. Created here because two
    * AudioContexts would mean two clocks, and the second one would make every
@@ -92,18 +107,6 @@ export class AudioEngine implements AudioEngineApi {
   createTimeKeeper(volume?: number): TimeKeeper {
     if (!this.context) throw new Error('Audio engine is not running; call start() first')
     return new Metronome(this.context, volume)
-  }
-
-  /**
-   * Reported round-trip latency, in seconds. Chrome fills these in for most
-   * interfaces; where it does not, the manual tap calibration in
-   * `audio/latency.ts` takes over.
-   */
-  reportedLatency(): number {
-    if (!this.context) return 0
-    const base = this.context.baseLatency ?? 0
-    const output = (this.context as AudioContext & { outputLatency?: number }).outputLatency ?? 0
-    return base + output
   }
 
   async listInputDevices(): Promise<InputDeviceInfo[]> {
@@ -127,6 +130,7 @@ export class AudioEngine implements AudioEngineApi {
 
   async start(deviceId?: string): Promise<void> {
     if (this.state === 'running' || this.state === 'starting') return
+    const generation = ++this.startGeneration
     this.setState('starting')
     this.lastError = null
 
@@ -143,18 +147,36 @@ export class AudioEngine implements AudioEngineApi {
         },
       }
 
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints)
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      if (this.superseded(generation)) return discard(stream)
+      this.stream = stream
+
       this.context = new AudioContext({ latencyHint: 'interactive' })
       await this.context.resume()
+      if (this.superseded(generation)) return void this.stop()
+
       await this.context.audioWorklet.addModule(WORKLET_URL)
+      if (this.superseded(generation)) return void this.stop()
 
       this.source = this.context.createMediaStreamSource(this.stream)
-      this.worklet = new AudioWorkletNode(this.context, 'pitch-processor', {
+      this.worklet = new AudioWorkletNode(this.context, PITCH_PROCESSOR_NAME, {
         numberOfInputs: 1,
         numberOfOutputs: 0,
-        processorOptions: {},
+        // The constraint asks for mono, but a browser that ignores it would
+        // leave the worklet reading an empty first channel on a 2-in interface
+        // with the bass in input 2. Explicit downmix removes the dependency.
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        processorOptions: { ...DEFAULT_PITCH_PROCESSOR_OPTIONS },
       })
-      this.worklet.port.onmessage = (event) => this.handleWorkletMessage(event.data)
+      this.worklet.port.onmessage = (event: MessageEvent<WorkletMessage>) =>
+        this.handleWorkletMessage(event.data)
+      // Without this a processor that threw in its constructor is invisible:
+      // the node exists, no message ever arrives, and the app reports running.
+      this.worklet.onprocessorerror = () => {
+        this.reportUnavailable('The audio processor stopped. Restart the input.')
+      }
+      this.watchForDisconnection()
 
       // No connection to destination: the Scarlett's own direct monitoring is
       // lower latency than anything routed through the browser, and skipping
@@ -171,6 +193,8 @@ export class AudioEngine implements AudioEngineApi {
   }
 
   async stop(): Promise<void> {
+    this.startGeneration++
+    this.holdingPitch = false
     this.worklet?.port.postMessage({ type: 'stop' })
     this.worklet?.disconnect()
     this.source?.disconnect()
@@ -198,23 +222,70 @@ export class AudioEngine implements AudioEngineApi {
     return () => this.stateListeners.delete(listener)
   }
 
+  /**
+   * Fired when the input goes away under us - the interface unplugged, the
+   * context suspended by the OS, the processor dead. Without it a take whose
+   * clock has stopped waits for a beat that never comes.
+   */
+  onUnavailable(listener: (reason: string) => void): () => void {
+    this.unavailableListeners.add(listener)
+    return () => this.unavailableListeners.delete(listener)
+  }
+
+  /** Clear the worklet's filter and envelope state before a new take (AU3). */
+  resetAnalysis(): void {
+    this.worklet?.port.postMessage({ type: 'reset' })
+  }
+
+  private superseded(generation: number): boolean {
+    return generation !== this.startGeneration
+  }
+
+  private watchForDisconnection(): void {
+    const track = this.stream?.getAudioTracks()[0]
+    track?.addEventListener('ended', () => {
+      this.reportUnavailable('The audio input was disconnected.')
+    })
+    if (this.context) {
+      this.context.onstatechange = () => {
+        if (this.context?.state === 'closed') return
+        if (this.context?.state === 'suspended') {
+          this.reportUnavailable('The browser suspended audio. Click the page and start again.')
+        }
+      }
+    }
+  }
+
+  private reportUnavailable(reason: string): void {
+    if (this.state !== 'running') return
+    this.lastError = reason
+    this.setState('error')
+    for (const listener of [...this.unavailableListeners]) listener(reason)
+  }
+
   setOptions(options: EngineOptions): void {
     this.options = { ...this.options, ...options }
   }
 
-  private handleWorkletMessage(message: { type: string } & Record<string, number>): void {
+  private handleWorkletMessage(message: WorkletMessage): void {
     if (message.type === 'onset') {
       const event: OnsetEvent = { time: message.time, level: message.level }
       this.onsetListeners.forEach((listener) => listener(event))
       return
     }
-    if (message.type !== 'pitch') return
+    if (message.type === 'overrun') {
+      this.reportUnavailable(
+        `This browser delivers audio ${message.renderQuantum} samples at a time, which is more than the processor buffers.`,
+      )
+      return
+    }
 
     const usable = this.isUsable(message.frequency, message.clarity, message.rms)
     this.holdingPitch = usable
     const nearest = usable ? centsFromNearestNote(message.frequency) : null
     const frame: PitchFrame = {
       time: message.time,
+      windowSeconds: message.windowSeconds,
       frequency: usable ? message.frequency : 0,
       clarity: message.clarity,
       rms: message.rms,

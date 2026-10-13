@@ -161,12 +161,18 @@ function Retention({ snapshot, today }: { snapshot: ProgressSnapshot; today: Dat
     <div className="card">
       <div className="row-between wrap" style={{ gap: 16 }}>
         <div className="stat">
-          <span className="stat-value">{score === null ? '—' : score}</span>
+          <span className="stat-value">
+            {score === null ? <span className="faint">not yet</span> : score}
+          </span>
           <span className="stat-label">Retention, last 14 days</span>
         </div>
         <div className="stat">
           <span className="stat-value">
-            {reading === null ? '—' : `${Math.round(reading * 100)}%`}
+            {reading === null ? (
+              <span className="faint">not yet</span>
+            ) : (
+              `${Math.round(reading * 100)}%`
+            )}
           </span>
           <span className="stat-label">Reading your own timing</span>
         </div>

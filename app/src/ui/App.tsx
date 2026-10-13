@@ -114,7 +114,7 @@ function EngineBadge() {
     error: 'input error',
   }[state]
   return (
-    <div style={{ marginTop: 'auto', padding: '0 8px' }}>
+    <div className="engine-badge" style={{ padding: '0 8px' }}>
       <Pill tone={tone}>{label}</Pill>
     </div>
   )

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAudio } from '../../state/AudioProvider'
-import { useProgressStore } from '../../state/progressStore'
+import { clampLatency, useProgressStore } from '../../state/progressStore'
 import { Pill } from '../components/Indicators'
 
 /** Goals, the coach, and the learner's own data. */
 export function Settings() {
-  const { coach } = useAudio()
+  const { coach, coachError } = useAudio()
   const snapshot = useProgressStore((store) => store.snapshot)
   const setDailyGoalMinutes = useProgressStore((store) => store.setDailyGoalMinutes)
   const setLatencyMs = useProgressStore((store) => store.setLatencyMs)
@@ -13,12 +13,15 @@ export function Settings() {
   const storageError = useProgressStore((store) => store.storageError)
 
   const [provider, setProvider] = useState('checking…')
+  const [usingModel, setUsingModel] = useState(false)
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    void coach.describeActiveProvider().then((label) => {
-      if (!cancelled) setProvider(label)
+    void coach.describeActiveProvider().then((status) => {
+      if (cancelled) return
+      setProvider(status.label)
+      setUsingModel(status.usesModel)
     })
     return () => {
       cancelled = true
@@ -66,16 +69,15 @@ export function Settings() {
       <div className="card">
         <h3>Coach</h3>
         <div className="row wrap" style={{ gap: 10 }}>
-          <Pill tone={provider.includes('AI') ? 'good' : 'plain'}>{provider}</Pill>
+          <Pill tone={usingModel ? 'good' : 'plain'}>{provider}</Pill>
           <span className="small muted">
             Set <code className="mono">ANTHROPIC_API_KEY</code> before starting the coach server to
             use a model. Without one, the built-in rules do the work.
           </span>
         </div>
-        {coach.lastModelError && (
+        {coachError && (
           <p className="banner banner-warn small" style={{ marginTop: 12 }}>
-            The model coach failed last time and the built-in rules answered instead:{' '}
-            {coach.lastModelError}
+            The model coach failed last time and the built-in rules answered instead: {coachError}
           </p>
         )}
       </div>
@@ -92,7 +94,7 @@ export function Settings() {
             value={Math.round(snapshot.profile.inputLatencyMs)}
             min={0}
             max={400}
-            onChange={(event) => setLatencyMs(Number(event.target.value))}
+            onChange={(event) => setLatencyMs(clampLatency(Number(event.target.value)))}
             style={{ width: 110 }}
           />
           <span className="small faint">ms</span>

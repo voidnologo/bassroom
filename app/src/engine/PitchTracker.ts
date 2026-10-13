@@ -8,11 +8,14 @@ import type { PitchFrame } from '../audio/AudioEngine'
  * resolved shortly afterwards, from the frames that arrive while the note is
  * ringing.
  *
- * The first few milliseconds of a plucked note are mostly transient and read as
- * noise or as the wrong pitch entirely, so the window used starts after the
- * attack rather than at it, and the answer is the most common reading in that
- * window rather than the first or the average. A mean would land between two
- * notes whenever the detector flickered; the mode cannot.
+ * Which readings count is decided by the audio each one covers, not by its
+ * timestamp. A reading describes a window of audio around its own time, so a
+ * reading taken shortly after an attack is mostly the *previous* note. Only
+ * readings whose window began at or after the attack are counted.
+ *
+ * The answer is the most common reading among those, not the first or the
+ * average: a mean would land between two notes whenever the detector flickered,
+ * on a pitch nobody played. The mode cannot.
  */
 
 export interface PitchResolution {
@@ -25,10 +28,14 @@ export interface PitchResolution {
 }
 
 export interface PitchTrackerOptions {
-  /** Skip this long after the attack before trusting the pitch. */
-  settleMs: number
-  /** Stop looking this long after the attack. */
-  windowMs: number
+  /**
+   * Allow a reading whose window began this long before the attack. A little
+   * slack covers the detector's own timing granularity without admitting a
+   * window that is mostly the note before.
+   */
+  leadToleranceMs: number
+  /** Stop collecting readings this long after the attack. */
+  listenForMs: number
   /** Frames below this clarity are ignored entirely. */
   minClarity: number
   /** How long to keep frames before discarding them. */
@@ -36,11 +43,19 @@ export interface PitchTrackerOptions {
 }
 
 export const DEFAULT_PITCH_TRACKER_OPTIONS: PitchTrackerOptions = {
-  settleMs: 35,
-  windowMs: 180,
+  leadToleranceMs: 10,
+  listenForMs: 320,
   minClarity: 0.85,
   retentionMs: 3000,
 }
+
+/** The start of the audio a reading describes. */
+function windowStart(frame: PitchFrame): number {
+  return frame.time - frame.windowSeconds / 2
+}
+
+/** Enough time after the first usable reading for a couple more to arrive. */
+const MINIMUM_AGREEMENT_SECONDS = 0.05
 
 export class PitchTracker {
   private frames: PitchFrame[] = []
@@ -55,14 +70,14 @@ export class PitchTracker {
 
   /** The pitch of the note that began at `onsetTime`, from frames seen so far. */
   resolve(onsetTime: number): PitchResolution {
-    const { settleMs, windowMs, minClarity } = this.options
-    const from = onsetTime + settleMs / 1000
-    const to = onsetTime + windowMs / 1000
+    const { leadToleranceMs, listenForMs, minClarity } = this.options
+    const earliestStart = onsetTime - leadToleranceMs / 1000
+    const latest = onsetTime + listenForMs / 1000
 
     const usable = this.frames.filter(
       (frame) =>
-        frame.time >= from &&
-        frame.time <= to &&
+        windowStart(frame) >= earliestStart &&
+        frame.time <= latest &&
         frame.midi !== null &&
         frame.clarity >= minClarity,
     )
@@ -86,9 +101,17 @@ export class PitchTracker {
     }
   }
 
-  /** True once enough time has passed that `resolve` will not improve. */
+  /**
+   * True once enough time has passed that `resolve` will not improve. A reading
+   * is only usable once its whole window is past the attack, so this waits for
+   * the audio, not just for the clock.
+   */
   isResolvable(onsetTime: number, now: number): boolean {
-    return now >= onsetTime + this.options.windowMs / 1000
+    const firstUsable = this.frames.find(
+      (frame) => windowStart(frame) >= onsetTime - this.options.leadToleranceMs / 1000,
+    )
+    if (firstUsable && now >= firstUsable.time + MINIMUM_AGREEMENT_SECONDS) return true
+    return now >= onsetTime + this.options.listenForMs / 1000
   }
 
   /** The most recent usable reading, for the live tuner and note display. */

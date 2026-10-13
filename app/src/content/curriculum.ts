@@ -104,7 +104,7 @@ export const LESSONS: Lesson[] = [
     briefing: [
       'The bass is tuned in equal fourths, so a shape keeps its sound anywhere you move it. Learn the shape, not the note names, and the note names follow.',
       'Root and fifth is the single most used pair of notes in bass playing. One string over, two frets up.',
-      'The octave is the same move with the little finger: one string over, two frets up, from a root on the E or A string.',
+      'The octave skips a string: from a root on the E string it is on the D string, two frets up. Do not confuse it with the fifth, which is the adjacent string two frets up.',
     ],
     exerciseIds: [
       'two-note-shuttle',
@@ -172,7 +172,7 @@ export const LESSONS: Lesson[] = [
     briefing: [
       "This is the published piano left hand, moved into the bass guitar's register. It is the part as written, not an arrangement.",
       'Bars 4 and 5 are the ones to isolate: A-flat down to G down to F, then G back up through A to B. They are the only stepwise motion in the verse and they are what makes the line sound like a bass part.',
-      'Bar 15 beat 3 is the only sharp in the entire hymn. It is the third of D7 and it leans into the G that follows.',
+      'Bars 15 beats 3 and 4 are the only F-sharps in the hymn. They are the third of D7 and they lean into the G that follows. The other accidental is the D-flat at the end of bar 19.',
     ],
     exerciseIds: [
       'song-this-is-the-christ-full-verse',

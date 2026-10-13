@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { STANDARD_TUNING, STRING_LABELS } from '../../music/fretboard'
 import { pitchClassName } from '../../music/notes'
-import type { TargetNote } from '../../music/types'
+import { barPositionAt, type MeterChange } from '../../music/meter'
+import type { TargetNote, TimeSignature } from '../../music/types'
 import type { Verdict } from '../../engine/judge'
 
 /**
@@ -20,6 +21,7 @@ export interface NoteHighwayProps {
   /** Verdicts by note index, filled in as the take is judged. */
   verdictsRef: React.MutableRefObject<Map<number, Verdict>>
   beatsPerBar: number
+  meterChanges?: MeterChange[]
   /** How much music is visible ahead of the now-line. */
   beatsAhead?: number
   height?: number
@@ -65,6 +67,7 @@ export function NoteHighway({
   beatRef,
   verdictsRef,
   beatsPerBar,
+  meterChanges,
   beatsAhead = 8,
   height = 190,
   running,
@@ -88,6 +91,7 @@ export function NoteHighway({
         beat: beatRef.current,
         verdicts: verdictsRef.current,
         beatsPerBar,
+        meterChanges,
         beatsAhead,
       })
       // Idle takes one paint, not sixty a second: the beat is not moving and
@@ -100,7 +104,7 @@ export function NoteHighway({
       active = false
       cancelAnimationFrame(frame)
     }
-  }, [notes, beatRef, verdictsRef, beatsPerBar, beatsAhead, running])
+  }, [notes, beatRef, verdictsRef, beatsPerBar, meterChanges, beatsAhead, running])
 
   return (
     <canvas
@@ -144,6 +148,7 @@ interface PaintOptions {
   beat: number
   verdicts: Map<number, Verdict>
   beatsPerBar: number
+  meterChanges?: MeterChange[]
   beatsAhead: number
 }
 
@@ -202,14 +207,21 @@ function drawBarLines(
   options: PaintOptions,
   geometry: Geometry,
 ): void {
-  const { beat, beatsPerBar, beatsAhead, height, width } = options
-  const firstBar = Math.floor(beat / beatsPerBar) - 1
-  const lastBar = Math.ceil((beat + beatsAhead) / beatsPerBar)
+  const { beat, beatsPerBar, meterChanges, beatsAhead, height, width } = options
+  const signature: TimeSignature = [beatsPerBar, 4]
 
   context.strokeStyle = '#232c38'
   context.lineWidth = 1
-  for (let bar = firstBar; bar <= lastBar; bar++) {
-    const x = geometry.nowX + (bar * beatsPerBar - beat) * geometry.pixelsPerBeat
+  // Walked beat by beat rather than divided, because the bar length can change
+  // partway through the music.
+  for (
+    let candidate = Math.floor(beat) - beatsPerBar;
+    candidate <= beat + beatsAhead;
+    candidate++
+  ) {
+    if (candidate < 0) continue
+    if (barPositionAt(candidate, signature, meterChanges).beatInBar !== 1) continue
+    const x = geometry.nowX + (candidate - beat) * geometry.pixelsPerBeat
     if (x < 0 || x > width) continue
     context.beginPath()
     context.moveTo(x, 8)

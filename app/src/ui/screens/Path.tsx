@@ -68,22 +68,26 @@ function LessonCard({
   onNavigate: (screen: string, exerciseId?: string) => void
 }) {
   const started = lesson.exerciseIds.filter((id) => starsOf(id) > 0).length
-  const fraction = lesson.exerciseIds.length === 0 ? 1 : started / lesson.exerciseIds.length
+  const readingOnly = lesson.exerciseIds.length === 0
+  const fraction = readingOnly ? 0 : started / lesson.exerciseIds.length
 
   return (
-    <div className="card" style={{ opacity: open ? 1 : 0.55 }}>
+    <div className="card" style={{ opacity: open ? 1 : 0.72 }}>
       <div className="row-between wrap" style={{ marginBottom: 8 }}>
         <h3 style={{ margin: 0 }}>{lesson.title}</h3>
         <div className="row" style={{ gap: 10 }}>
           {!open && <Pill>locked</Pill>}
           <span className="tiny faint mono">
-            {started}/{lesson.exerciseIds.length} · ~{lesson.estimatedMinutes} min
+            {readingOnly ? 'nothing to play' : `${started}/${lesson.exerciseIds.length}`} · ~
+            {lesson.estimatedMinutes} min
           </span>
         </div>
       </div>
 
       <p className="small muted">{lesson.summary}</p>
-      <Meter fraction={fraction} good={fraction === 1} />
+      {/* A lesson with nothing to play showed a full bar, which read as done
+          before anything had happened. */}
+      {!readingOnly && <Meter fraction={fraction} good={fraction === 1} />}
 
       <details style={{ marginTop: 12 }}>
         <summary className="small muted" style={{ cursor: 'pointer' }}>

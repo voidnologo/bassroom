@@ -9,6 +9,7 @@ import {
   type SessionPhase,
   type SessionResult,
 } from '../../engine/PracticeSession'
+import { barPositionAt } from '../../music/meter'
 import type { Exercise, TargetNote } from '../../music/types'
 import { levelFor } from '../../progress/gamification'
 import type { AttemptResult } from '../../progress/reducer'
@@ -39,6 +40,12 @@ export interface TakeState {
   /** Call-and-response only: which prompt the learner is on. */
   promptIndex: number
   beatInBar: number
+  /**
+   * Index of the note to show next. Published on a timer rather than read from
+   * the beat ref during render: nothing re-renders when the beat advances, so a
+   * ref read meant the target froze whenever the learner stopped playing.
+   */
+  targetIndex: number
   lastResult: SessionResult | null
   lastAttempt: AttemptResult | null
   feedback: CoachFeedback | null
@@ -55,6 +62,7 @@ const initialState: TakeState = {
   awaitingEstimate: false,
   promptIndex: 0,
   beatInBar: 0,
+  targetIndex: 0,
   lastResult: null,
   lastAttempt: null,
   feedback: null,
@@ -111,24 +119,36 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
     [complete],
   )
 
-  const start = useCallback(() => {
-    verdictsRef.current = new Map()
-    beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
-    setTake({ ...initialState, phase: 'count-in' })
+  /**
+   * `atBpm` is optional, but an event handler must not be wired to this
+   * directly: React would pass the click event as the tempo.
+   */
+  const start = useCallback(
+    (atBpm?: number) => {
+      const takeBpm = typeof atBpm === 'number' && Number.isFinite(atBpm) ? atBpm : bpm
+      // A take left waiting for an estimate is finished but unrecorded; starting
+      // another would drop it silently. Record it with no estimate instead.
+      const unrated = pendingRef.current
+      pendingRef.current = null
+      if (unrated) complete(unrated, null)
 
-    const session = new PracticeSession({
-      input: engine,
-      createTimeKeeper: () => engine.createTimeKeeper(),
-      latencyMs: snapshot.profile.inputLatencyMs,
-      callbacks: {
-        onPhase: (phase) => setTake((current) => ({ ...current, phase })),
-        onPrompt: (_note, index) => setTake((current) => ({ ...current, promptIndex: index })),
+      sessionRef.current?.dispose()
+      engine.resetAnalysis()
+      verdictsRef.current = new Map()
+      beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
+      setTake({ ...initialState, phase: 'count-in' })
+
+      const session = buildSession({
+        engine,
+        latencyMs: snapshot.profile.inputLatencyMs,
+        setTake,
         onFinish: finish,
-      },
-    })
-    sessionRef.current = session
-    session.start(exercise, bpm)
-  }, [bpm, engine, exercise, finish, snapshot.profile.inputLatencyMs])
+      })
+      sessionRef.current = session
+      session.start(exercise, takeBpm)
+    },
+    [bpm, complete, engine, exercise, finish, snapshot.profile.inputLatencyMs],
+  )
 
   const stop = useCallback(() => {
     sessionRef.current?.stop()
@@ -136,12 +156,15 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
   }, [])
 
   useEffect(() => () => sessionRef.current?.dispose(), [])
+
+  useAbandonOnInputLoss(engine, sessionRef)
   useBeatClock({
     engine,
     sessionRef,
     beatRef,
     frameRef,
-    beatsPerBar: exercise.timeSignature[0],
+    exercise,
+    targets,
     setTake,
   })
   usePitchReadout(engine, setTake)
@@ -226,6 +249,7 @@ function useTakeCompletion(
         durationSeconds: result.durationSeconds,
         scaleExerciseIds: scaleExerciseIdsFrom(ALL_EXERCISES),
         isProbe: options.isProbe,
+        abandoned: result.abandoned,
         selfEstimate,
       })
 
@@ -246,7 +270,8 @@ interface BeatClockOptions {
   sessionRef: React.MutableRefObject<PracticeSession | null>
   beatRef: React.MutableRefObject<number>
   frameRef: React.MutableRefObject<number>
-  beatsPerBar: number
+  exercise: Exercise
+  targets: TargetNote[]
   setTake: SetTake
 }
 
@@ -256,27 +281,44 @@ interface BeatClockOptions {
  * rather than sixty.
  */
 function useBeatClock(options: BeatClockOptions): void {
-  const { engine, sessionRef, beatRef, frameRef, beatsPerBar, setTake } = options
+  const { engine, sessionRef, beatRef, frameRef, exercise, targets, setTake } = options
   useEffect(() => {
     const tick = (): void => {
       const clock = sessionRef.current?.getTimeKeeper()
-      if (clock) beatRef.current = clock.timeToBodyBeat(engine.now())
+      // Only while a clock exists: the loop used to run for the whole life of
+      // the screen whether or not a take was in progress.
+      if (!clock) {
+        frameRef.current = 0
+        return
+      }
+      beatRef.current = clock.timeToBodyBeat(engine.now())
       frameRef.current = requestAnimationFrame(tick)
     }
-    frameRef.current = requestAnimationFrame(tick)
 
-    const beatTimer = window.setInterval(() => {
-      const inBar = ((Math.floor(beatRef.current) % beatsPerBar) + beatsPerBar) % beatsPerBar
+    const publish = (): void => {
+      if (sessionRef.current?.getTimeKeeper() && frameRef.current === 0) {
+        frameRef.current = requestAnimationFrame(tick)
+      }
+      const beat = beatRef.current
+      const inBar =
+        beat < 0
+          ? countInPosition(beat, exercise)
+          : barPositionAt(beat, exercise.timeSignature, exercise.meterChanges).beatInBar - 1
+      const found = targets.findIndex((note) => note.startBeat >= beat - 0.2)
+      const next = found === -1 ? Math.max(0, targets.length - 1) : found
       setTake((current) =>
-        current.beatInBar === inBar ? current : { ...current, beatInBar: inBar },
+        current.beatInBar === inBar && current.targetIndex === next
+          ? current
+          : { ...current, beatInBar: inBar, targetIndex: next },
       )
-    }, 40)
+    }
 
+    const beatTimer = window.setInterval(publish, 40)
     return () => {
       cancelAnimationFrame(frameRef.current)
       window.clearInterval(beatTimer)
     }
-  }, [engine, sessionRef, beatRef, frameRef, beatsPerBar, setTake])
+  }, [engine, sessionRef, beatRef, frameRef, exercise, targets, setTake])
 }
 
 /** Throttles the live pitch display; the detector produces about 47 readings a second. */
@@ -292,19 +334,70 @@ function usePitchReadout(engine: Engine, setTake: SetTake): void {
   }, [engine, setTake])
 }
 
-/** Best effort: a failed write must never interrupt practice. */
-async function recordTake(telemetry: TakeTelemetry): Promise<void> {
+/**
+ * Best effort: a failed write must never interrupt practice. It is still worth
+ * knowing about, because a static server answers /api with the app's own HTML
+ * and that is a 200 - so without checking, every take looks recorded and none
+ * of them is.
+ */
+async function recordTake(telemetry: TakeTelemetry): Promise<boolean> {
   try {
-    await fetch('/api/takes', {
+    const response = await fetch('/api/takes', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(telemetry),
     })
+    if (!response.ok) return false
+    const body: unknown = await response.json()
+    return typeof body === 'object' && body !== null && 'recorded' in body
   } catch {
-    // The coach server is optional; progress is also kept in the browser.
+    return false
   }
 }
 
 function daysSince(isoDate: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(isoDate).getTime()) / 86_400_000))
+}
+
+function buildSession(options: {
+  engine: Engine
+  latencyMs: number
+  setTake: SetTake
+  onFinish: (result: SessionResult) => void
+}): PracticeSession {
+  const { engine, latencyMs, setTake, onFinish } = options
+  return new PracticeSession({
+    input: engine,
+    createTimeKeeper: () => engine.createTimeKeeper(),
+    latencyMs,
+    callbacks: {
+      onPhase: (phase) => setTake((current) => ({ ...current, phase })),
+      onPrompt: (_note, index) => setTake((current) => ({ ...current, promptIndex: index })),
+      onFinish,
+    },
+  })
+}
+
+/**
+ * A take whose input has gone away will never reach its last beat, so it has to
+ * be ended here rather than waiting for a clock that has stopped advancing.
+ */
+function useAbandonOnInputLoss(
+  engine: Engine,
+  sessionRef: React.MutableRefObject<PracticeSession | null>,
+): void {
+  useEffect(
+    () =>
+      engine.onUnavailable(() => {
+        sessionRef.current?.stop()
+        sessionRef.current = null
+      }),
+    [engine, sessionRef],
+  )
+}
+
+/** During the count-in the beat is negative, so it is counted from the downbeat. */
+function countInPosition(beat: number, exercise: Exercise): number {
+  const beatsPerBar = exercise.timeSignature[0]
+  return ((Math.floor(beat) % beatsPerBar) + beatsPerBar) % beatsPerBar
 }

@@ -10,6 +10,9 @@ import type { BeatEvent } from '../../src/audio/Metronome'
  * PracticeSession can be exercised deterministically without a browser.
  */
 
+/** Matches the real worklet's window, so attribution behaves as it will live. */
+const ANALYSIS_WINDOW_SECONDS = 0.128
+
 export class FakeAudioInput implements AudioInput {
   private pitchListeners = new Set<(frame: PitchFrame) => void>()
   private onsetListeners = new Set<(event: OnsetEvent) => void>()
@@ -44,6 +47,7 @@ export class FakeAudioInput implements AudioInput {
     this.currentTime = Math.max(this.currentTime, frame.time)
     const complete: PitchFrame = {
       frequency: 0,
+      windowSeconds: ANALYSIS_WINDOW_SECONDS,
       clarity: 0.95,
       rms: 0.2,
       midi: null,
@@ -65,7 +69,10 @@ export class FakeAudioInput implements AudioInput {
   playNote(options: { time: number; midi: number | null; cents?: number; level?: number }): void {
     const { time, midi, cents = 0, level = 0.5 } = options
     this.emitOnset(time, level)
-    for (let offset = 0.05; offset <= 0.2; offset += 0.021) {
+    // Readings only count once their whole window is past the attack, so the
+    // first one here is half a window late, as the real pipeline produces.
+    const first = ANALYSIS_WINDOW_SECONDS / 2
+    for (let offset = first; offset <= first + 0.15; offset += 0.021) {
       this.emitPitch({ time: time + offset, midi, cents, frequency: midi === null ? 0 : 100 })
     }
   }

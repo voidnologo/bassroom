@@ -11,11 +11,12 @@ import { openStrings } from '../../music/fretboard'
 import { noteName } from '../../music/notes'
 import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
-import { Meter, Pill } from '../components/Indicators'
+import { Pill, TuningNeedle } from '../components/Indicators'
 
 /** Input selection, tuning, and the latency measurement every timing judgment depends on. */
 export function Setup() {
-  const { state, devices, error, start, stop, refreshDevices, engine } = useAudio()
+  const { state, devices, error, processingWarning, start, stop, refreshDevices, engine } =
+    useAudio()
   const profile = useProgressStore((store) => store.snapshot.profile)
   const setPreferredDevice = useProgressStore((store) => store.setPreferredDevice)
   const [selected, setSelected] = useState(profile.preferredDeviceId ?? '')
@@ -38,6 +39,7 @@ export function Setup() {
       </div>
 
       {error && <div className="banner banner-bad">{error}</div>}
+      {processingWarning && <div className="banner banner-warn">{processingWarning}</div>}
 
       <div className="card">
         <h3>Input</h3>
@@ -127,7 +129,7 @@ function Tuner() {
               {Math.abs(reading.cents) < 5 ? 'in tune' : reading.cents > 0 ? 'sharp' : 'flat'}
             </Pill>
           </div>
-          <Meter fraction={(reading.cents + 50) / 100} good={Math.abs(reading.cents) < 5} />
+          <TuningNeedle cents={reading.cents} />
           <p className="small muted">
             {nearest && reading.midi === nearest.midi
               ? `That is your ${nearest.label} string.`
@@ -160,11 +162,31 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
   const samplesRef = useRef<CalibrationSample[]>([])
   const metronomeRef = useRef<TimeKeeper | null>(null)
 
+  const stopListeningRef = useRef<(() => void) | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** Idempotent: both the onset handler and the timeout can reach it. */
   const finish = useCallback(() => {
-    metronomeRef.current?.dispose()
+    if (metronomeRef.current === null) return
+    metronomeRef.current.dispose()
     metronomeRef.current = null
+    stopListeningRef.current?.()
+    stopListeningRef.current = null
+    if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+    timeoutRef.current = null
     setRunning(false)
     setResult(summarizeCalibration(samplesRef.current))
+  }, [])
+
+  // Leaving the screen mid-measurement used to leave the click track playing
+  // and an onset listener running on whatever screen you landed on.
+  useEffect(() => {
+    return () => {
+      metronomeRef.current?.dispose()
+      metronomeRef.current = null
+      stopListeningRef.current?.()
+      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+    }
   }, [])
 
   const begin = useCallback(() => {

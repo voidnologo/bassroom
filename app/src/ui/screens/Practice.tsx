@@ -3,6 +3,7 @@ import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
 import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
 import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote } from '../../music/types'
+import type { NextAction } from '../../coach/types'
 import type { PerformanceScore, Verdict } from '../../engine/judge'
 import { starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
 import type { AttemptResult } from '../../progress/reducer'
@@ -45,34 +46,51 @@ export function Practice({
 
   const { take, targets, beatRef, verdictsRef, start, stop, submitEstimate, ready } =
     usePracticeTake(exercise, bpm, { isProbe, askForEstimate: exercise.mode === 'play-along' })
+  const running = RUNNING_PHASES.has(take.phase)
+
+  useTakeShortcut(running, start, stop)
 
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
 
-  const handleCoachAction = (action: { bpm?: number; kind: string }): void => {
-    if (action.bpm) setBpm(action.bpm)
-    if (action.kind === 'switch-exercise') onNavigate('path')
-    else start()
+  /**
+   * Only the kinds that mean "go again" start a take. Resting and isolating a
+   * bar both used to start one, so pressing "Take a break" began another.
+   */
+  const handleCoachAction = (action: NextAction): void => {
+    if (action.kind === 'switch-exercise') {
+      onNavigate('path')
+      return
+    }
+    if (action.kind === 'rest') return
+    // The tempo is passed into the take rather than set and read back: a state
+    // update does not land before the next line, so the take used to run at the
+    // tempo the coach had just told the learner to leave.
+    const nextBpm = action.bpm ?? bpm
+    setBpm(nextBpm)
+    start(nextBpm)
   }
 
   return (
     <div className="stack" style={{ gap: 18 }}>
       <Header exercise={exercise} progress={progress} />
 
-      <Stage
-        exercise={exercise}
-        take={take}
-        targets={targets}
-        beatRef={beatRef}
-        verdictsRef={verdictsRef}
-        bpm={bpm}
-        onBpm={setBpm}
-        onStart={start}
-        onStop={stop}
-        isProbe={isProbe}
-        onProbe={setIsProbe}
-      />
-
-      {take.awaitingEstimate && <SelfEstimatePrompt onAnswer={submitEstimate} />}
+      {take.awaitingEstimate ? (
+        <SelfEstimatePrompt onAnswer={submitEstimate} />
+      ) : (
+        <Stage
+          exercise={exercise}
+          take={take}
+          targets={targets}
+          beatRef={beatRef}
+          verdictsRef={verdictsRef}
+          bpm={bpm}
+          onBpm={setBpm}
+          onStart={start}
+          onStop={stop}
+          isProbe={isProbe}
+          onProbe={setIsProbe}
+        />
+      )}
 
       {!take.awaitingEstimate && take.lastResult && take.lastAttempt && (
         <Result
@@ -130,9 +148,9 @@ const RUNNING_PHASES = new Set(['count-in', 'playing', 'judging'])
 
 /** Call and response advances note by note; a play-along follows the clock. */
 function currentPrompt(props: StageProps): TargetNote | undefined {
-  const { exercise, take, targets, beatRef } = props
-  if (exercise.mode === 'call-response') return targets[take.promptIndex]
-  return nextTarget(targets, beatRef.current)
+  const { exercise, take, targets } = props
+  const index = exercise.mode === 'call-response' ? take.promptIndex : take.targetIndex
+  return targets[index] ?? targets[0]
 }
 
 function Stage(props: StageProps) {
@@ -155,12 +173,15 @@ function Stage(props: StageProps) {
 
       <Fretboard {...fretboardPropsFor({ prompt, position, showCues, take, targets })} />
 
-      {exercise.mode !== 'call-response' && showCues && (
+      {exercise.mode !== 'call-response' && (
+        // Kept mounted during a retention check and fed an empty note list, so
+        // the block does not vanish and shift everything below it mid count-in.
         <NoteHighway
-          notes={targets}
+          notes={showCues ? targets : []}
           beatRef={beatRef}
           verdictsRef={verdictsRef}
           beatsPerBar={exercise.timeSignature[0]}
+          meterChanges={exercise.meterChanges}
           running={running}
         />
       )}
@@ -188,11 +209,12 @@ function TransportBar({
         <button
           type="button"
           className="btn btn-primary"
-          onClick={running ? onStop : onStart}
+          onClick={() => (running ? onStop() : onStart())}
           style={{ minWidth: 130 }}
         >
           {running ? 'Stop' : 'Start take'}
         </button>
+        <span className="tiny faint">space</span>
         <Pill tone={take.phase === 'count-in' ? 'warn' : 'plain'}>{phaseLabel(take.phase)}</Pill>
         <ProbeToggle checked={isProbe} disabled={running} onChange={onProbe} />
       </div>
@@ -427,13 +449,31 @@ function nextStar(current: Star): Star {
   return Math.min(3, current + 1) as Star
 }
 
-/** The next note due, to keep the fretboard one step ahead of the player. */
-function nextTarget(targets: TargetNote[], beat: number): TargetNote | undefined {
-  return targets.find((note) => note.startBeat >= beat - 0.2) ?? targets[0]
-}
-
 /** Enough frets to cover the exercise, with a little room on either side. */
 function fretWindowFor(targets: TargetNote[]): number {
   const frets = targets.map((note) => note.position?.fret ?? 0)
   return Math.min(16, Math.max(7, Math.max(...frets, 0) + 2))
+}
+
+/**
+ * Space starts and stops a take.
+ *
+ * The count-in is all the time there is to get both hands back on the
+ * instrument, and a player holding a bass has one hand free at most, so
+ * reaching for a mouse to start is the wrong shape.
+ */
+function useTakeShortcut(running: boolean, start: () => void, stop: () => void): void {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.code !== 'Space' || event.repeat) return
+      const target = event.target as HTMLElement | null
+      // Leave the key alone when it belongs to whatever has focus.
+      if (target && /^(INPUT|TEXTAREA|BUTTON|SELECT|SUMMARY)$/.test(target.tagName)) return
+      event.preventDefault()
+      if (running) stop()
+      else start()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [running, start, stop])
 }

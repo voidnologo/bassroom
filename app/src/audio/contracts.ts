@@ -59,6 +59,10 @@ export type EngineState = 'idle' | 'starting' | 'running' | 'error'
  */
 export interface AudioEngineApi extends AudioInput {
   getState(): EngineState
+  /** Fired when the input goes away: unplugged, suspended, or processor dead. */
+  onUnavailable(listener: (reason: string) => void): () => void
+  /** Clear filter and envelope state so a take does not inherit the last one. */
+  resetAnalysis(): void
   onStateChange(listener: (state: EngineState) => void): () => void
   listInputDevices(): Promise<InputDeviceInfo[]>
   requestPermission(): Promise<void>

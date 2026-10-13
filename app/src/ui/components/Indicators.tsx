@@ -6,7 +6,9 @@ import { xpIntoLevel, levelFor } from '../../progress/gamification'
 
 export function Stars({ value, label = true }: { value: Star; label?: boolean }) {
   return (
-    <span className="stars" aria-label={`${value} of 3 stars`}>
+    // role="img" is what makes the label win over the glyphs; aria-label is
+    // ignored on a bare span, which would read out "star star white star".
+    <span className="stars" role="img" aria-label={`${value} of 3 stars`}>
       {'★'.repeat(value)}
       <span className="stars-empty">{'☆'.repeat(3 - value)}</span>
       {label && (
@@ -53,17 +55,54 @@ const VERDICT_LABELS: Record<Verdict, string> = {
 }
 
 export function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
+  const counts = new Map<Verdict, number>()
+  for (const verdict of verdicts) counts.set(verdict, (counts.get(verdict) ?? 0) + 1)
+  const summary = [...counts.entries()]
+    .map(([verdict, count]) => `${count} ${VERDICT_LABELS[verdict]}`)
+    .join(', ')
+
   return (
-    <div className="verdict-row" role="list" aria-label="Note by note result">
-      {verdicts.map((verdict, index) => (
-        <span
-          key={index}
-          role="listitem"
-          className="verdict-chip"
-          data-verdict={verdict}
-          title={`Note ${index + 1}: ${VERDICT_LABELS[verdict]}`}
-        />
-      ))}
+    <div className="stack" style={{ gap: 6 }}>
+      <div className="verdict-row" role="list" aria-label={`Note by note: ${summary}`}>
+        {verdicts.map((verdict, index) => (
+          <span
+            key={index}
+            role="listitem"
+            className="verdict-chip"
+            data-verdict={verdict}
+            aria-label={`Note ${index + 1}: ${VERDICT_LABELS[verdict]}`}
+            title={`Note ${index + 1}: ${VERDICT_LABELS[verdict]}`}
+          />
+        ))}
+      </div>
+      {/* The chips encode early and late by position, which is no use to a
+          screen reader, so the same information is written out. */}
+      <p className="tiny faint" style={{ margin: 0 }}>
+        {summary}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * A centred needle for the tuner.
+ *
+ * A left-to-right fill bar cannot show which side of centre you are on without
+ * reading the number beside it, which is the opposite of what a tuner is for
+ * when both hands are on the instrument.
+ */
+export function TuningNeedle({ cents, tolerance = 5 }: { cents: number; tolerance?: number }) {
+  const clamped = Math.max(-50, Math.min(50, cents))
+  const inTune = Math.abs(cents) <= tolerance
+  return (
+    <div
+      className="needle"
+      role="img"
+      aria-label={inTune ? 'In tune' : `${Math.round(cents)} cents ${cents > 0 ? 'sharp' : 'flat'}`}
+    >
+      <span className="needle-band" />
+      <span className="needle-centre" />
+      <span className="needle-mark" data-in-tune={inTune} style={{ left: `${50 + clamped}%` }} />
     </div>
   )
 }

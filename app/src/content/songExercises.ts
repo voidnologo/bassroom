@@ -1,4 +1,5 @@
-import type { Exercise, SkillId, SongChart, TimeSignature } from '../music/types'
+import type { MeterChange } from '../music/meter'
+import type { Exercise, SkillId, SongBar, SongChart, TimeSignature } from '../music/types'
 import { flattenBars, resolveSignatures } from './authoring'
 import { exercise } from './exerciseBuilder'
 import { SONGS } from './songs'
@@ -123,7 +124,7 @@ export const SONG_EXERCISE_SPECS: SongExerciseSpec[] = [
   },
 ]
 
-function exerciseId(spec: SongExerciseSpec): string {
+export function exerciseId(spec: SongExerciseSpec): string {
   return ['song', spec.songId, spec.arrangementId, spec.sectionId].filter(Boolean).join('-')
 }
 
@@ -136,6 +137,7 @@ function buildExercise(spec: SongExerciseSpec, song: SongChart): Exercise {
   const resolved = resolveSignatures(arrangement.bars, song.timeSignature)
   const selected = spec.sectionId ? selectSection(resolved, song, spec.sectionId) : resolved
   const signature: TimeSignature = selected[0]?.timeSignature ?? song.timeSignature
+  const meterChanges = meterChangesIn(selected, signature)
 
   return exercise({
     id: exerciseId(spec),
@@ -144,12 +146,32 @@ function buildExercise(spec: SongExerciseSpec, song: SongChart): Exercise {
     skills: spec.skills,
     keyCenter: song.keyCenter,
     timeSignature: signature,
+    meterChanges,
     targetBpm: spec.targetBpm ?? song.targetBpm,
     floorBpm: spec.floorBpm ?? song.floorBpm,
     repeats: spec.repeats,
     tips: spec.tips ?? song.performanceNotes.slice(0, 2),
     notes: flattenBars(selected, signature),
   })
+}
+
+/**
+ * The beats at which the meter changes, so a whole-chart exercise can still be
+ * barred correctly. Without this the hymn's 4/4 chorus was counted in 3/4.
+ */
+function meterChangesIn(bars: SongBar[], base: TimeSignature): MeterChange[] {
+  const changes: MeterChange[] = []
+  let elapsed = 0
+  let current = base
+  for (const bar of bars) {
+    const signature = bar.timeSignature ?? current
+    if (signature[0] !== current[0] || signature[1] !== current[1]) {
+      changes.push({ atBeat: elapsed, timeSignature: signature })
+      current = signature
+    }
+    elapsed += current[0]
+  }
+  return changes
 }
 
 function selectSection(

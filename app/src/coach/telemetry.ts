@@ -1,5 +1,6 @@
 import type { NoteJudgment } from '../engine/judge'
 import { scorePerformance } from '../engine/judge'
+import { barPositionAt, type MeterChange } from '../music/meter'
 import { centsFromNearestNote, midiToFrequency, shiftByCents } from '../music/notes'
 import type { Exercise, TimeSignature } from '../music/types'
 import { TELEMETRY_SCHEMA_VERSION, type NoteTelemetry, type TakeTelemetry } from './types'
@@ -25,7 +26,6 @@ export interface TelemetryInput {
 
 export function buildTelemetry(input: TelemetryInput): TakeTelemetry {
   const { exercise, judgments, bpm } = input
-  const beatsPerBar = exercise.timeSignature[0]
 
   return {
     schemaVersion: TELEMETRY_SCHEMA_VERSION,
@@ -42,37 +42,23 @@ export function buildTelemetry(input: TelemetryInput): TakeTelemetry {
     bpm,
     latencyCorrectionMs: input.latencyCorrectionMs,
     score: scorePerformance(judgments),
-    notes: judgments.map((judgment, index) => toNoteTelemetry(judgment, index, beatsPerBar)),
+    notes: judgments.map((judgment, index) => toNoteTelemetry(judgment, index, exercise)),
     learner: input.learner,
   }
 }
 
-function toNoteTelemetry(
-  judgment: NoteJudgment,
-  index: number,
-  beatsPerBar: number,
-): NoteTelemetry {
+function toNoteTelemetry(judgment: NoteJudgment, index: number, exercise: Exercise): NoteTelemetry {
   const { target, played } = judgment
   const startBeat = target?.startBeat ?? played?.beat ?? 0
 
   return {
     index,
-    ...placeInBar(startBeat, beatsPerBar),
+    ...barPositionAt(startBeat, exercise.timeSignature, exercise.meterChanges),
     ...whatWasAsked(target),
     ...whatWasPlayed(played),
     timingErrorMs: judgment.timingErrorMs,
     semitoneError: judgment.semitoneError,
     verdict: judgment.verdict,
-  }
-}
-
-function placeInBar(
-  startBeat: number,
-  beatsPerBar: number,
-): Pick<NoteTelemetry, 'bar' | 'beatInBar'> {
-  return {
-    bar: Math.floor(startBeat / beatsPerBar) + 1,
-    beatInBar: Number((startBeat % beatsPerBar).toFixed(3)) + 1,
   }
 }
 
@@ -111,10 +97,12 @@ function centsOffsetOf(playedMidi: number, reportedCents: number): number {
   return Number(centsFromNearestNote(sounded).cents.toFixed(1))
 }
 
-/** Bar and beat of a note index, for referring to a spot in the music. */
-export function locate(startBeat: number, timeSignature: TimeSignature): string {
-  const beatsPerBar = timeSignature[0]
-  const bar = Math.floor(startBeat / beatsPerBar) + 1
-  const beat = (startBeat % beatsPerBar) + 1
-  return `bar ${bar}, beat ${beat % 1 === 0 ? beat : beat.toFixed(2)}`
+/** Bar and beat of a position, for referring to a spot in the music. */
+export function locate(
+  startBeat: number,
+  timeSignature: TimeSignature,
+  meterChanges?: MeterChange[],
+): string {
+  const { bar, beatInBar } = barPositionAt(startBeat, timeSignature, meterChanges)
+  return `bar ${bar}, beat ${beatInBar % 1 === 0 ? beatInBar : beatInBar.toFixed(2)}`
 }

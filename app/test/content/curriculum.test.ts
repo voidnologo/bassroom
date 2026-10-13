@@ -9,6 +9,7 @@ import {
 } from '../../src/content/curriculum'
 import { FRET_COUNT, STANDARD_TUNING, midiAt } from '../../src/music/fretboard'
 import { noteName } from '../../src/music/notes'
+import { barPositionAt } from '../../src/music/meter'
 import type { Exercise, Lesson } from '../../src/music/types'
 
 const exerciseCases = ALL_EXERCISES.map((item) => ({ name: item.id, item }))
@@ -178,5 +179,32 @@ describe('units', () => {
 
   it('puts at least one lesson in each unit', () => {
     for (const unit of UNITS) expect(unit.lessonIds.length).toBeGreaterThan(0)
+  })
+})
+
+describe('exercises that change meter', () => {
+  const hymnWhole = exerciseById('song-this-is-the-christ-roots')!
+
+  it('records where the hymn changes from three-four to four-four', () => {
+    expect(hymnWhole.meterChanges?.[0]).toEqual({ atBeat: 33, timeSignature: [4, 4] })
+  })
+
+  it('bars the chorus in four, not in the verse meter', () => {
+    // Bar 12 is the first bar of 4/4. Counted with a single divisor, every bar
+    // after it came out one beat wrong and drifting.
+    expect(barPositionAt(33, hymnWhole.timeSignature, hymnWhole.meterChanges)).toEqual({
+      bar: 12,
+      beatInBar: 1,
+    })
+  })
+
+  it('ends on a whole bar', () => {
+    const last = hymnWhole.notes[hymnWhole.notes.length - 1]
+    const end = last.startBeat + last.durationBeats
+    expect(barPositionAt(end, hymnWhole.timeSignature, hymnWhole.meterChanges).beatInBar).toBe(1)
+  })
+
+  it('leaves single-meter exercises without a meter map', () => {
+    expect(exerciseById('song-angel-full')!.meterChanges).toEqual([])
   })
 })

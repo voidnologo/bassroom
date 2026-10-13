@@ -23,9 +23,15 @@ input ──► DC blocker (20 Hz) ──┬──► onset detector ───�
                                                                     "that note was a C2"
 ```
 
-The onset gives the timestamp, immediately, at sample accuracy. The pitch arrives later and is attributed back to the onset that preceded it. Timing judgments use the first number; pitch judgments use the second. Neither waits for the other.
+The onset gives the timestamp, immediately, at sample accuracy. The pitch arrives later and is attributed back to the onset that preceded it.
+
+Which readings count is decided by the audio each one covers, not by its timestamp. A reading describes 128 ms of audio, so one taken shortly after an attack is mostly the _previous_ note; only readings whose window began at or after the attack are counted. The window's span is sent with every reading so that can be worked out exactly rather than approximated by a constant. Timing judgments use the first number; pitch judgments use the second. Neither waits for the other.
 
 This also matters for honesty about the data. A bassist playing their own instrument against a click has a mean asynchrony of a couple of milliseconds. If the app reports a large consistent earliness, that is a measurement offset, not a player error — which is why latency calibration exists and why its result is kept separate from anything the player can adjust by feel.
+
+## Sample rate is not assumed
+
+The decimation factor and the window length are derived from whatever rate the device is actually running at, not hard-coded. They used to be fixed for 48 kHz, which made the analysis window 139 ms rather than 128 ms at 44.1 kHz, and made the detector's constructor throw outright at 192 kHz — an ordinary setting on an audio interface, and one where the app would have reported itself running while hearing nothing.
 
 ## Why decimate
 

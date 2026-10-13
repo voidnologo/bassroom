@@ -44,18 +44,19 @@ export class CoachService {
     for (const listener of [...this.listeners]) listener({ lastModelError: message })
   }
 
-  async describeActiveProvider(): Promise<string> {
+  /** A caller must not have to infer the provider from the wording of a label. */
+  async describeActiveProvider(): Promise<{ label: string; usesModel: boolean }> {
     const provider = await this.pick()
-    return provider.label
+    return { label: provider.label, usesModel: provider !== this.heuristic }
   }
 
   async analyze(request: CoachRequest): Promise<CoachFeedback> {
+    // Everything goes through the same try, including the heuristic: an
+    // identity check that skipped it would let a rule throw straight at the UI.
     const provider = await this.pick()
-    if (provider === this.heuristic) return this.heuristic.analyze(request)
-
     try {
       const feedback = await provider.analyze(request)
-      this.setModelError(null)
+      if (provider !== this.heuristic) this.setModelError(null)
       return feedback
     } catch (error) {
       this.setModelError(error instanceof Error ? error.message : String(error))
