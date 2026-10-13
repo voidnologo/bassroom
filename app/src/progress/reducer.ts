@@ -5,6 +5,7 @@ import {
   type LadderOutcome,
   type Star,
 } from '../engine/tempoLadder'
+import { notesPlayed, nothingWasPlayed } from '../engine/judge'
 import type { PerformanceScore } from '../engine/judge'
 import type { Exercise } from '../music/types'
 import {
@@ -111,31 +112,39 @@ export interface AttemptInput {
   selfEstimate?: SelfEstimate | null
 }
 
+function buildAttempt(input: AttemptInput, stars: Star, unplayed: boolean): Attempt {
+  const selfEstimate = input.selfEstimate ?? null
+  const guessWorthScoring = selfEstimate !== null && !unplayed
+  return {
+    exerciseId: input.exercise.id,
+    completedAt: input.now.toISOString(),
+    bpm: input.bpm,
+    targetBpm: input.exercise.targetBpm,
+    score: input.score,
+    stars,
+    durationSeconds: input.durationSeconds,
+    abandoned: input.abandoned ?? false,
+    isProbe: input.isProbe ?? false,
+    selfEstimate,
+    estimateWasRight: guessWorthScoring ? selfEstimate === actualTiming(input.score) : null,
+  }
+}
+
 /**
  * Fold one completed take into the learner's state: mastery, tempo ladder,
  * review schedule, XP, streak, and any badges it earns.
  */
 export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): AttemptResult {
-  const { exercise, score, bpm, durationSeconds, now } = input
-  const abandoned = input.abandoned ?? false
+  const { exercise, score, bpm, now } = input
+  // A take the detector heard nothing in is no more evidence than an abandoned
+  // one, so it is recorded and then excluded from everything that reads as progress.
+  const unplayed = nothingWasPlayed(score)
+  const discounted = (input.abandoned ?? false) || unplayed
   const stars = starsFor(score, bpm, exercise)
-  const selfEstimate = input.selfEstimate ?? null
-  const attempt: Attempt = {
-    exerciseId: exercise.id,
-    completedAt: now.toISOString(),
-    bpm,
-    targetBpm: exercise.targetBpm,
-    score,
-    stars,
-    durationSeconds,
-    abandoned,
-    isProbe: input.isProbe ?? false,
-    selfEstimate,
-    estimateWasRight: selfEstimate === null ? null : selfEstimate === actualTiming(score),
-  }
+  const attempt = buildAttempt(input, stars, unplayed)
 
   const previous = progressFor(snapshot, exercise, now)
-  const ladder = abandoned ? holdLadder(previous) : advanceLadder(previous.ladder, score)
+  const ladder = discounted ? holdLadder(previous) : advanceLadder(previous.ladder, score)
   const updatedExercise: ExerciseProgress = {
     ...previous,
     attempts: previous.attempts + 1,
@@ -143,15 +152,15 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     bestScore: Math.max(previous.bestScore, score.overall),
     bestBpm: Math.max(previous.bestBpm, bpm),
     ladder: ladder.next,
-    review: abandoned ? previous.review : scheduleNextReview(previous.review, stars, now),
+    review: discounted ? previous.review : scheduleNextReview(previous.review, stars, now),
     lastPracticedAt: attempt.completedAt,
   }
 
   const daysSinceLastPractice = gapBeforeToday(snapshot.profile, now)
-  const streakUpdate = abandoned
+  const streakUpdate = discounted
     ? { streak: snapshot.profile.streak, outcome: 'already-counted' as const }
     : recordPractice(snapshot.profile.streak, now)
-  const xp = abandoned ? NO_XP : xpForAttempt(attempt, streakUpdate.outcome !== 'already-counted')
+  const xp = discounted ? NO_XP : xpForAttempt(attempt, streakUpdate.outcome !== 'already-counted')
 
   const history = [attempt, ...snapshot.history].slice(0, HISTORY_LIMIT)
   const exercises = { ...snapshot.exercises, [exercise.id]: updatedExercise }
@@ -224,7 +233,7 @@ function gapBeforeToday(profile: LearnerProfile, now: Date): number | null {
 }
 
 function countNotesPlayed(history: Attempt[]): number {
-  return history.reduce((sum, item) => sum + item.score.totalTargets, 0)
+  return history.reduce((sum, item) => sum + notesPlayed(item.score), 0)
 }
 
 function idsAtLeast(exercises: Record<string, ExerciseProgress>, stars: Star): Set<string> {

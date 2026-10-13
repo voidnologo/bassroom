@@ -200,6 +200,24 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
   }
 }
 
+/**
+ * Notes the take actually produced: targets that were matched, plus notes no
+ * target claimed. `totalTargets` is what was asked for, which is not the same
+ * thing and is zero evidence of playing.
+ */
+export function notesPlayed(score: PerformanceScore): number {
+  return score.totalTargets - score.missedNotes + score.extraNotes
+}
+
+/**
+ * True when the take ran its full length and the detector heard nothing. Such a
+ * take is not evidence of playing, in the same way an abandoned one is not, and
+ * crediting it makes the streak maintainable by pressing start and walking away.
+ */
+export function nothingWasPlayed(score: PerformanceScore): boolean {
+  return score.totalTargets > 0 && notesPlayed(score) === 0
+}
+
 function clamp(value: number, low: number, high: number): number {
   return Math.min(high, Math.max(low, value))
 }

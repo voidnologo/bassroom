@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   judgePerformance,
+  notesPlayed,
+  nothingWasPlayed,
   scorePerformance,
   windowsForTempo,
   type PlayedNote,
@@ -229,5 +231,27 @@ describe('scorePerformance', () => {
       60,
     )
     expect(scorePerformance(judgments).overall).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe('notesPlayed', () => {
+  it('counts a matched target and a note no target claimed', () => {
+    const judgments = judgePerformance(FOUR_QUARTERS, [played(0), played(9)], 60)
+    expect(notesPlayed(scorePerformance(judgments))).toBe(2)
+  })
+
+  it('counts nothing when the player stayed silent', () => {
+    expect(notesPlayed(scorePerformance(judgePerformance(FOUR_QUARTERS, [], 60)))).toBe(0)
+  })
+})
+
+describe('nothingWasPlayed', () => {
+  it('is true for a take the player sat through in silence', () => {
+    expect(nothingWasPlayed(scorePerformance(judgePerformance(FOUR_QUARTERS, [], 60)))).toBe(true)
+  })
+
+  it('is false when the player played a wrong note, which is still playing', () => {
+    const judgments = judgePerformance(FOUR_QUARTERS, [played(9)], 60)
+    expect(nothingWasPlayed(scorePerformance(judgments))).toBe(false)
   })
 })

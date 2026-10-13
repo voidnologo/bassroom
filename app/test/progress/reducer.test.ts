@@ -103,6 +103,54 @@ describe('progressFor', () => {
   })
 })
 
+const SILENT = score(0, { pitchAccuracy: 0, timingAccuracy: 0, missedNotes: 4, totalTargets: 4 })
+
+describe('a take the detector heard nothing in', () => {
+  it('earns no XP, so the streak cannot be farmed by pressing start', () => {
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: SILENT }))
+    expect(result.xp.total).toBe(0)
+    expect(result.snapshot.profile.xp).toBe(0)
+  })
+
+  it('does not extend the streak', () => {
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: SILENT }))
+    expect(result.snapshot.profile.streak.current).toBe(0)
+  })
+
+  it('does not demote a tempo the player had already earned', () => {
+    const promoted = run([{}, {}])
+    const before = progressFor(promoted, pulse, DAY_ONE).ladder.currentBpm
+    const result = applyAttempt(promoted, input({ score: SILENT }))
+    expect(before).toBeGreaterThan(pulse.floorBpm)
+    expect(result.ladder.next.currentBpm).toBe(before)
+  })
+
+  it('does not count as a lapse against the review schedule', () => {
+    const start = applyAttempt(createSnapshot(DAY_ONE), input()).snapshot
+    const before = progressFor(start, pulse, DAY_ONE).review
+    const result = applyAttempt(start, input({ score: SILENT }))
+    expect(progressFor(result.snapshot, pulse, DAY_ONE).review).toEqual(before)
+  })
+
+  it('does not credit a timing guess, because there was no timing to guess at', () => {
+    const result = applyAttempt(
+      createSnapshot(DAY_ONE),
+      input({ score: SILENT, selfEstimate: 'on-it' }),
+    )
+    expect(result.attempt.estimateWasRight).toBeNull()
+  })
+
+  it('does not earn the badge for playing a first note', () => {
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: SILENT }))
+    expect(result.newBadges).not.toContain('first-note')
+  })
+
+  it('is still recorded in the history, because the player did sit the take', () => {
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: SILENT }))
+    expect(result.snapshot.history).toHaveLength(1)
+  })
+})
+
 describe('applyAttempt', () => {
   it('records the take in history', () => {
     expect(applyAttempt(createSnapshot(DAY_ONE), input()).snapshot.history).toHaveLength(1)

@@ -251,8 +251,16 @@ describe('badges', () => {
     expect(badgeById('first-note')?.name).toBe('First note')
   })
 
-  it('awards the first badge for the first take', () => {
-    expect(newlyEarnedBadges(context({ history: [attempt()] }))).toContain('first-note')
+  it('awards the first badge once a note has actually been played', () => {
+    expect(newlyEarnedBadges(context({ history: [attempt()], notesPlayed: 1 }))).toContain(
+      'first-note',
+    )
+  })
+
+  it('withholds it from a take the detector heard nothing in', () => {
+    expect(newlyEarnedBadges(context({ history: [attempt()], notesPlayed: 0 }))).not.toContain(
+      'first-note',
+    )
   })
 
   it('awards nothing before anything has happened', () => {

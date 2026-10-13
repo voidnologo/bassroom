@@ -245,7 +245,7 @@ export interface BadgeContext {
 type BadgeRule = (context: BadgeContext) => boolean
 
 const RULES: Record<BadgeId, BadgeRule> = {
-  'first-note': (context) => context.history.length >= 1,
+  'first-note': (context) => context.notesPlayed >= 1,
   'first-star': (context) => context.starredExerciseIds.size >= 1,
   'three-stars': (context) => context.masteredExerciseIds.size >= 1,
   'full-tempo': (context) => context.history.some((item) => item.bpm >= item.targetBpm),
