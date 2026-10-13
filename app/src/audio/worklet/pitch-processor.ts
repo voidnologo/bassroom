@@ -96,6 +96,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     this.decimator.reset()
     this.ring.reset()
     this.onsets.reset()
+    this.yin.reset()
     this.samplesSinceHop = 0
   }
 

@@ -73,6 +73,17 @@ export class YinDetector {
     return this.options.bufferSize
   }
 
+  /**
+   * Both buffers are scratch, rewritten end to end on every `detect`, so no
+   * estimate can carry into the next take. Clearing them anyway keeps the
+   * worklet's reset uniform across its DSP members, rather than asking a reader
+   * to prove the exception.
+   */
+  reset(): void {
+    this.difference.fill(0)
+    this.cumulative.fill(0)
+  }
+
   detect(frame: Float32Array): YinResult | null {
     if (frame.length < this.options.bufferSize) {
       throw new Error(`Frame must hold ${this.options.bufferSize} samples, got ${frame.length}`)
