@@ -20,13 +20,30 @@ case "$FILE_PATH" in
 esac
 [[ -f "$FILE_PATH" ]] || exit 0
 
-APP_DIR="${CLAUDE_PROJECT_DIR:-.}/app"
+# Resolved before the working directory changes below, so a relative path from
+# the tool payload still names the same file afterwards.
+case "$FILE_PATH" in
+  /*) ;;
+  *) FILE_PATH="$PWD/$FILE_PATH" ;;
+esac
+
+APP_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/app"
 # The project's own binaries pin the versions CI uses; a global eslint or
 # prettier on PATH may disagree and send Claude chasing a difference that
 # will not reproduce.
 ESLINT="$APP_DIR/node_modules/.bin/eslint"
 PRETTIER="$APP_DIR/node_modules/.bin/prettier"
 [[ -x "$ESLINT" && -x "$PRETTIER" ]] || exit 0
+
+# eslint.config.js lives in app/, and ESLint 9 resolves its config from the
+# working directory rather than from the file it is linting. Everything below
+# therefore runs from app/, and a file outside it has no config to be judged
+# against.
+case "$FILE_PATH" in
+  "$APP_DIR"/*) ;;
+  *) exit 0 ;;
+esac
+cd "$APP_DIR" || exit 0
 
 "$PRETTIER" --write --log-level error "$FILE_PATH" 2>&1
 "$ESLINT" --fix --no-warn-ignored "$FILE_PATH" >/dev/null 2>&1
@@ -41,7 +58,12 @@ fi
 # Type errors are advisory here: a file is often edited before the module it
 # will import exists, and blocking mid-edit on that is noise. /quality-check
 # and CI both block on tsc.
-TYPE_OUTPUT=$(cd "$APP_DIR" && ./node_modules/.bin/tsc --noEmit 2>&1 | grep -F "$(basename "$FILE_PATH")")
+#
+# Matched on the path tsc prints, which is relative to app/. Matching the bare
+# filename instead reports every types.ts in the project against whichever one
+# was edited.
+RELATIVE_PATH="${FILE_PATH#"$APP_DIR"/}"
+TYPE_OUTPUT=$(./node_modules/.bin/tsc --noEmit 2>&1 | grep -F "$RELATIVE_PATH")
 if [[ -n "$TYPE_OUTPUT" ]]; then
   printf 'Type errors (advisory, blocking in /quality-check):\n%s\n' "$TYPE_OUTPUT" >&2
 fi
