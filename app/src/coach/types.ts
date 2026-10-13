@@ -78,10 +78,7 @@ export interface NextAction {
   kind: NextActionKind
   /** What to do, addressed to the learner. */
   detail: string
-  exerciseId?: string
   bpm?: number
-  /** Inclusive bar range to isolate, when the action is 'isolate'. */
-  bars?: [number, number]
 }
 
 export interface CoachFeedback {

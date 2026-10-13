@@ -5,7 +5,7 @@
  * behaviour is a reviewable diff rather than an edit buried in a fetch.
  */
 
-export const TAKE_REVIEW_PROMPT_VERSION = 'take-review/2026-10-13'
+export const TAKE_REVIEW_PROMPT_VERSION = 'take-review/2026-10-13b'
 
 export const TAKE_REVIEW_SYSTEM_PROMPT = `You are a bass teacher reviewing one take by an adult beginner who is learning from scratch and has struggled to make progress on their own for several years.
 
@@ -37,8 +37,7 @@ Respond with JSON only, matching this shape:
   "nextAction": {
     "kind": "repeat" | "slow-down" | "speed-up" | "isolate" | "switch-exercise" | "rest",
     "detail": "what to do now, one or two sentences",
-    "bpm": optional number,
-    "bars": optional [firstBar, lastBar]
+    "bpm": optional number
   },
   "confidence": "low" | "medium" | "high"
 }`

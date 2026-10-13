@@ -282,11 +282,6 @@ describe('parseFeedback', () => {
     expect(parseFeedback(withBpm, 'model').nextAction.bpm).toBe(70)
   })
 
-  it('keeps an optional bar range', () => {
-    const withBars = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop it.', bars: [4, 5] } }
-    expect(parseFeedback(withBars, 'model').nextAction.bars).toEqual([4, 5])
-  })
-
   it('caps observations at three however many the model returns', () => {
     const many = { ...valid, observations: Array(9).fill(valid.observations[0]) }
     expect(parseFeedback(many, 'model').observations).toHaveLength(3)
@@ -338,20 +333,8 @@ describe('parseFeedback', () => {
     expect(parseFeedback(odd, 'model').nextAction.bpm).toBeUndefined()
   })
 
-  it('ignores a bar range that runs backwards or starts before bar one', () => {
-    const backwards = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop.', bars: [9, 2] } }
-    expect(parseFeedback(backwards, 'model').nextAction.bars).toBeUndefined()
-    const zero = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop.', bars: [0, 2] } }
-    expect(parseFeedback(zero, 'model').nextAction.bars).toBeUndefined()
-  })
-
   it('clips text long enough to break the layout', () => {
     const essay = { ...valid, headline: 'x'.repeat(5000) }
     expect(parseFeedback(essay, 'model').headline.length).toBeLessThan(500)
-  })
-
-  it('ignores a malformed bar range instead of failing the whole response', () => {
-    const odd = { ...valid, nextAction: { kind: 'isolate', detail: 'Loop.', bars: ['a', 'b'] } }
-    expect(parseFeedback(odd, 'model').nextAction.bars).toBeUndefined()
   })
 })

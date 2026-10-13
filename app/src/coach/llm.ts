@@ -146,19 +146,12 @@ function parseNextAction(value: unknown): NextAction {
     kind: asMember(value.kind, ACTION_KINDS, 'nextAction kind') as NextAction['kind'],
     detail: clip(asNonEmptyString(value.detail, 'nextAction detail')),
   }
-  // Bounds a model's numbers to something an instrument can do, rather than
-  // handing the UI a tempo of 99999 or a bar index of -5.
+  // Bounds a model's tempo to something an instrument can do, rather than
+  // handing the UI 99999 bpm.
   if (typeof value.bpm === 'number' && value.bpm >= 20 && value.bpm <= 300) {
     action.bpm = Math.round(value.bpm)
   }
-  if (isBarRange(value.bars) && value.bars[0] >= 1 && value.bars[1] >= value.bars[0]) {
-    action.bars = [Math.round(value.bars[0]), Math.round(value.bars[1])]
-  }
   return action
-}
-
-function isBarRange(value: unknown): value is [number, number] {
-  return Array.isArray(value) && value.length === 2 && value.every((n) => typeof n === 'number')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

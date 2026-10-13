@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
 import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
 import { noteName } from '../../music/notes'
@@ -17,6 +17,7 @@ import { BeatDots, Meter, Pill, Stars, VerdictStrip } from '../components/Indica
 import { NoteHighway } from '../components/NoteHighway'
 import { EstimateOutcome, SelfEstimatePrompt } from '../components/SelfEstimate'
 import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
+import { useOverride } from '../hooks/useOverride'
 import { isDue } from '../../progress/srs'
 
 /**
@@ -35,14 +36,12 @@ export function Practice({
   const { state: engineState } = useAudio()
 
   const progress = useMemo(() => progressFor(snapshot, exercise, new Date()), [snapshot, exercise])
-  const [bpm, setBpm] = useState(progress.ladder.currentBpm)
-  useEffect(() => setBpm(progress.ladder.currentBpm), [exercise.id, progress.ladder.currentBpm])
+  const [bpm, setBpm] = useOverride(exercise.id, progress.ladder.currentBpm)
 
   // A review that is due defaults to a probe: measuring what has been retained
   // is only honest when the cues that inflate it are switched off.
   const dueForReview = progress.attempts > 0 && isDue(progress.review, new Date())
-  const [isProbe, setIsProbe] = useState(dueForReview)
-  useEffect(() => setIsProbe(dueForReview), [exercise.id, dueForReview])
+  const [isProbe, setIsProbe] = useOverride(exercise.id, dueForReview)
 
   const { take, targets, beatRef, verdictsRef, start, stop, submitEstimate, ready } =
     usePracticeTake(exercise, bpm, { isProbe, askForEstimate: exercise.mode === 'play-along' })
@@ -52,19 +51,16 @@ export function Practice({
 
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
 
-  /**
-   * Only the kinds that mean "go again" start a take. Resting and isolating a
-   * bar both used to start one, so pressing "Take a break" began another.
-   */
+  /** Only the kinds that mean "go again" start a take. */
   const handleCoachAction = (action: NextAction): void => {
     if (action.kind === 'switch-exercise') {
       onNavigate('path')
       return
     }
-    if (action.kind === 'rest') return
-    // The tempo is passed into the take rather than set and read back: a state
-    // update does not land before the next line, so the take used to run at the
-    // tempo the coach had just told the learner to leave.
+    if (action.kind === 'rest' || action.kind === 'isolate') return
+    // Passed into the take rather than set and read back: a state update does
+    // not land before the next line, so the take would run at the tempo the
+    // coach had just told the learner to leave.
     const nextBpm = action.bpm ?? bpm
     setBpm(nextBpm)
     start(nextBpm)

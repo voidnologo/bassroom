@@ -256,7 +256,6 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
     return {
       kind: 'isolate',
       detail: `Loop bar ${bar} on its own until it stops being the hard part.`,
-      bars: [bar, bar],
     }
   }
 

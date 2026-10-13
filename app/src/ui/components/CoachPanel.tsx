@@ -29,6 +29,8 @@ export function CoachPanel({
 
   if (!feedback) return null
 
+  const label = actionLabel(feedback.nextAction.kind)
+
   return (
     <div className="card">
       <div className="row-between" style={{ marginBottom: 10 }}>
@@ -53,9 +55,9 @@ export function CoachPanel({
           <div className="stat-label">Do this next</div>
           <div>{feedback.nextAction.detail}</div>
         </div>
-        {onAct && (
+        {onAct && label !== null && (
           <button type="button" className="btn btn-primary btn-sm" onClick={() => onAct(feedback)}>
-            {actionLabel(feedback.nextAction.kind)}
+            {label}
           </button>
         )}
       </div>
@@ -89,14 +91,21 @@ function labelFor(severity: Observation['severity']): string {
   return 'note'
 }
 
-function actionLabel(kind: CoachFeedback['nextAction']['kind']): string {
-  const labels: Record<CoachFeedback['nextAction']['kind'], string> = {
+/**
+ * Null for the kinds the app cannot carry out. Looping one bar and taking a
+ * break are both things the learner does with the instrument; a button for
+ * them promises the app will set something up, and pressing "Loop that bar"
+ * started an ordinary take of the whole exercise. The advice itself is still
+ * printed above, which is where it was doing the work.
+ */
+function actionLabel(kind: CoachFeedback['nextAction']['kind']): string | null {
+  const labels: Record<CoachFeedback['nextAction']['kind'], string | null> = {
     repeat: 'Run it again',
     'slow-down': 'Slow down and go',
     'speed-up': 'Speed up and go',
-    isolate: 'Loop that bar',
+    isolate: null,
     'switch-exercise': 'Back to the path',
-    rest: 'Take a break',
+    rest: null,
   }
   return labels[kind]
 }
