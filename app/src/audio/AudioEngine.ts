@@ -235,7 +235,7 @@ export class AudioEngine {
  * Constraints are requests, not commands: a browser that does not honour one
  * silently ignores it, so the only way to know is to read the settings back.
  */
-function describeUnwantedProcessing(stream: MediaStream): string | null {
+export function describeUnwantedProcessing(stream: MediaStream): string | null {
   const track = stream.getAudioTracks()[0]
   if (!track) return null
   const settings = track.getSettings() as MediaTrackSettings & {

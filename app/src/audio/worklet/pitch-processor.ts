@@ -11,6 +11,12 @@ import {
 } from './messages'
 
 /**
+ * The render quantum is 128 samples today and the spec reserves the right to
+ * change it, so the scratch buffer is sized with room to spare.
+ */
+const MAX_RENDER_QUANTUM = 1024
+
+/**
  * Wires the DSP blocks together on the audio thread.
  *
  * This file is deliberately thin: every algorithm lives in `../dsp`, where it
@@ -40,7 +46,7 @@ class PitchProcessor extends AudioWorkletProcessor {
     // 20 Hz is an octave below the open E string, so this removes any offset
     // without touching the lowest note the instrument can produce.
     this.dcBlocker = FilterChain.butterworthHighpass(sampleRate, 20, 2)
-    this.blocked = new Float32Array(128)
+    this.blocked = new Float32Array(MAX_RENDER_QUANTUM)
     this.decimator = new Decimator(sampleRate, this.options.decimation)
     this.ring = new RingBuffer(this.options.bufferSize)
     this.frame = new Float32Array(this.options.bufferSize)
@@ -83,12 +89,15 @@ class PitchProcessor extends AudioWorkletProcessor {
     return true
   }
 
-  /** Writes into a preallocated buffer; the audio thread must not allocate. */
+  /**
+   * Writes into a preallocated buffer and returns a view of it. The audio
+   * thread must not allocate, so the buffer is sized for the largest quantum a
+   * browser could hand over rather than for the one it usually does.
+   */
   private removeOffset(channel: Float32Array): Float32Array {
-    const target =
-      channel.length === this.blocked.length ? this.blocked : new Float32Array(channel.length)
-    for (let i = 0; i < channel.length; i++) target[i] = this.dcBlocker.process(channel[i])
-    return target
+    const length = Math.min(channel.length, this.blocked.length)
+    for (let i = 0; i < length; i++) this.blocked[i] = this.dcBlocker.process(channel[i])
+    return this.blocked.subarray(0, length)
   }
 
   private accumulate(channel: Float32Array): void {

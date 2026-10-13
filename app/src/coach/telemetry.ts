@@ -1,6 +1,6 @@
 import type { NoteJudgment } from '../engine/judge'
 import { scorePerformance } from '../engine/judge'
-import { centsFromNearestNote, midiToFrequency } from '../music/notes'
+import { centsFromNearestNote, midiToFrequency, shiftByCents } from '../music/notes'
 import type { Exercise, TimeSignature } from '../music/types'
 import { TELEMETRY_SCHEMA_VERSION, type NoteTelemetry, type TakeTelemetry } from './types'
 
@@ -107,7 +107,7 @@ function whatWasPlayed(
  * a note that was slightly flat from one that was a fret too low.
  */
 function centsOffsetOf(playedMidi: number, reportedCents: number): number {
-  const sounded = midiToFrequency(playedMidi) * 2 ** (reportedCents / 1200)
+  const sounded = shiftByCents(midiToFrequency(playedMidi), reportedCents)
   return Number(centsFromNearestNote(sounded).cents.toFixed(1))
 }
 

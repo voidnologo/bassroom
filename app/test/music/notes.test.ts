@@ -9,6 +9,7 @@ import {
   octaveOf,
   parseNote,
   pitchClassName,
+  shiftByCents,
 } from '../../src/music/notes'
 
 describe('midiToFrequency', () => {
@@ -146,5 +147,28 @@ describe('intervalName', () => {
 
   it('describes compound intervals', () => {
     expect(intervalName(19)).toContain('octave')
+  })
+})
+
+describe('shiftByCents', () => {
+  it('leaves a frequency alone at zero cents', () => {
+    expect(shiftByCents(440, 0)).toBeCloseTo(440, 9)
+  })
+
+  it('raises a frequency by a semitone at 100 cents', () => {
+    expect(shiftByCents(midiToFrequency(69), 100)).toBeCloseTo(midiToFrequency(70), 6)
+  })
+
+  it('doubles a frequency at an octave', () => {
+    expect(shiftByCents(100, 1200)).toBeCloseTo(200, 9)
+  })
+
+  it('lowers a frequency for a negative shift', () => {
+    expect(shiftByCents(100, -1200)).toBeCloseTo(50, 9)
+  })
+
+  it('is the inverse of centsBetween', () => {
+    const shifted = shiftByCents(midiToFrequency(33), 37)
+    expect(centsBetween(shifted, 33)).toBeCloseTo(37, 6)
   })
 })

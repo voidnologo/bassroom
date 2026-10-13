@@ -23,6 +23,11 @@ export function centsFromNearestNote(frequency: number): { midi: number; cents: 
   return { midi, cents: (exact - midi) * 100 }
 }
 
+/** Move a frequency by an interval expressed in cents. */
+export function shiftByCents(frequency: number, cents: number): number {
+  return frequency * 2 ** (cents / 1200)
+}
+
 export function centsBetween(frequency: number, referenceMidi: number): number {
   return (frequencyToMidi(frequency) - referenceMidi) * 100
 }
