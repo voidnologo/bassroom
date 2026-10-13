@@ -12,6 +12,7 @@ import {
 import type { Exercise, TargetNote } from '../../music/types'
 import { levelFor } from '../../progress/gamification'
 import type { AttemptResult } from '../../progress/reducer'
+import type { SelfEstimate } from '../../progress/types'
 import { useAudio } from '../../state/AudioProvider'
 import { scaleExerciseIdsFrom, useProgressStore } from '../../state/progressStore'
 import { ALL_EXERCISES } from '../../content/curriculum'
@@ -29,6 +30,12 @@ import type { ProgressSnapshot } from '../../progress/types'
 export interface TakeState {
   phase: SessionPhase
   heard: PitchFrame | null
+  /**
+   * Set when a take has finished but its result is being withheld until the
+   * learner has said how they think it went. The interval must stay empty:
+   * filling it with the score, or with anything else, removes the benefit.
+   */
+  awaitingEstimate: boolean
   /** Call-and-response only: which prompt the learner is on. */
   promptIndex: number
   beatInBar: number
@@ -45,6 +52,7 @@ type Coach = ReturnType<typeof useAudio>['coach']
 const initialState: TakeState = {
   phase: 'idle',
   heard: null,
+  awaitingEstimate: false,
   promptIndex: 0,
   beatInBar: 0,
   lastResult: null,
@@ -56,7 +64,14 @@ const initialState: TakeState = {
 /** How often the live pitch readout may re-render, in milliseconds. */
 const PITCH_READOUT_INTERVAL_MS = 120
 
-export function usePracticeTake(exercise: Exercise, bpm: number) {
+export interface TakeOptions {
+  /** Hide every live cue and mark the take as a retention probe. */
+  isProbe: boolean
+  /** Ask the learner to read their own timing before showing them the result. */
+  askForEstimate: boolean
+}
+
+export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOptions) {
   const { engine, coach, state: engineState } = useAudio()
   const snapshot = useProgressStore((store) => store.snapshot)
 
@@ -66,8 +81,35 @@ export function usePracticeTake(exercise: Exercise, bpm: number) {
   const frameRef = useRef(0)
 
   const [take, setTake] = useState<TakeState>(initialState)
+  const pendingRef = useRef<SessionResult | null>(null)
   const targets: TargetNote[] = useMemo(() => expandRepeats(exercise), [exercise])
-  const finish = useTakeCompletion({ exercise, coach, snapshot, setTake, verdictsRef })
+  const complete = useTakeCompletion({ exercise, coach, snapshot, setTake, verdictsRef, options })
+
+  /**
+   * A take either completes straight away, or waits for the learner's estimate
+   * first. Nothing about the result reaches the screen until they have answered.
+   */
+  const finish = useCallback(
+    (result: SessionResult) => {
+      if (!options.askForEstimate) {
+        complete(result, null)
+        return
+      }
+      pendingRef.current = result
+      setTake((current) => ({ ...current, awaitingEstimate: true }))
+    },
+    [complete, options.askForEstimate],
+  )
+
+  const submitEstimate = useCallback(
+    (estimate: SelfEstimate) => {
+      const result = pendingRef.current
+      pendingRef.current = null
+      setTake((current) => ({ ...current, awaitingEstimate: false }))
+      if (result) complete(result, estimate)
+    },
+    [complete],
+  )
 
   const start = useCallback(() => {
     verdictsRef.current = new Map()
@@ -103,7 +145,16 @@ export function usePracticeTake(exercise: Exercise, bpm: number) {
   })
   usePitchReadout(engine, setTake)
 
-  return { take, targets, beatRef, verdictsRef, start, stop, ready: engineState === 'running' }
+  return {
+    take,
+    targets,
+    beatRef,
+    verdictsRef,
+    start,
+    stop,
+    submitEstimate,
+    ready: engineState === 'running',
+  }
 }
 
 interface CompletionOptions {
@@ -112,6 +163,7 @@ interface CompletionOptions {
   snapshot: ProgressSnapshot
   setTake: SetTake
   verdictsRef: React.MutableRefObject<Map<number, Verdict>>
+  options: TakeOptions
 }
 
 /**
@@ -119,8 +171,10 @@ interface CompletionOptions {
  * ask the coach. Kept apart from the session wiring because it is the part that
  * touches four other subsystems.
  */
-function useTakeCompletion(options: CompletionOptions): (result: SessionResult) => void {
-  const { exercise, coach, snapshot, setTake, verdictsRef } = options
+function useTakeCompletion(
+  completion: CompletionOptions,
+): (result: SessionResult, estimate: SelfEstimate | null) => void {
+  const { exercise, coach, snapshot, setTake, verdictsRef, options } = completion
   const recordAttempt = useProgressStore((store) => store.recordAttempt)
   const recentTakesRef = useRef<TakeTelemetry[]>([])
 
@@ -157,7 +211,7 @@ function useTakeCompletion(options: CompletionOptions): (result: SessionResult) 
   )
 
   return useCallback(
-    (result: SessionResult) => {
+    (result: SessionResult, selfEstimate: SelfEstimate | null) => {
       for (const judgment of result.judgments) {
         if (judgment.targetIndex !== null) {
           verdictsRef.current.set(judgment.targetIndex, judgment.verdict)
@@ -170,6 +224,8 @@ function useTakeCompletion(options: CompletionOptions): (result: SessionResult) 
         bpm: result.bpm,
         durationSeconds: result.durationSeconds,
         scaleExerciseIds: scaleExerciseIdsFrom(ALL_EXERCISES),
+        isProbe: options.isProbe,
+        selfEstimate,
       })
 
       setTake((current) => ({
@@ -180,7 +236,7 @@ function useTakeCompletion(options: CompletionOptions): (result: SessionResult) 
       }))
       void askCoach(result, attempt)
     },
-    [askCoach, exercise, recordAttempt, setTake, verdictsRef],
+    [askCoach, exercise, options.isProbe, recordAttempt, setTake, verdictsRef],
   )
 }
 

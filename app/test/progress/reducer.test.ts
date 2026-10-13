@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
   HISTORY_LIMIT,
+  actualTiming,
   applyAttempt,
   buildDailyPlan,
   createExerciseProgress,
   createSnapshot,
   minutesPracticedOn,
   progressFor,
+  retentionScore,
+  selfEstimateAccuracy,
   type AttemptInput,
 } from '../../src/progress/reducer'
 import { addDays } from '../../src/progress/srs'
@@ -265,5 +268,71 @@ describe('buildDailyPlan', () => {
       snapshot = applyAttempt(snapshot, input({ exercise: item, score: score(99) })).snapshot
     }
     expect(buildDailyPlan(snapshot, catalogue, addDays(DAY_ONE, 30)).length).toBeGreaterThan(0)
+  })
+})
+
+describe('probes and self-estimation', () => {
+  it('records an ordinary take as guided practice, not a probe', () => {
+    expect(applyAttempt(createSnapshot(DAY_ONE), input()).attempt.isProbe).toBe(false)
+  })
+
+  it('marks a take played with the feedback off as a probe', () => {
+    expect(applyAttempt(createSnapshot(DAY_ONE), input({ isProbe: true })).attempt.isProbe).toBe(true)
+  })
+
+  it('reports nothing for retention until a probe has been played', () => {
+    const snapshot = run([{}, {}, {}])
+    expect(retentionScore(snapshot.history, DAY_ONE)).toBeNull()
+  })
+
+  it('reports retention from probe takes only', () => {
+    // The guided take scores 95 and the probe scores 60; 60 is the honest number.
+    let snapshot = applyAttempt(createSnapshot(DAY_ONE), input({ score: score(95) })).snapshot
+    snapshot = applyAttempt(snapshot, input({ isProbe: true, score: score(60) })).snapshot
+    expect(retentionScore(snapshot.history, DAY_ONE)).toBe(60)
+  })
+
+  it('ignores probes older than the window', () => {
+    const snapshot = applyAttempt(createSnapshot(DAY_ONE), input({ isProbe: true })).snapshot
+    expect(retentionScore(snapshot.history, addDays(DAY_ONE, 40))).toBeNull()
+  })
+
+  it('scores a correct self-estimate as correct', () => {
+    const dragging = score(80, { meanTimingErrorMs: 80 })
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: dragging, selfEstimate: 'behind' }))
+    expect(result.attempt.estimateWasRight).toBe(true)
+  })
+
+  it('scores a wrong self-estimate as wrong', () => {
+    const dragging = score(80, { meanTimingErrorMs: 80 })
+    const result = applyAttempt(createSnapshot(DAY_ONE), input({ score: dragging, selfEstimate: 'ahead' }))
+    expect(result.attempt.estimateWasRight).toBe(false)
+  })
+
+  it('treats a small timing error as on the beat', () => {
+    const tight = score(95, { meanTimingErrorMs: 10 })
+    expect(actualTiming(tight)).toBe('on-it')
+  })
+
+  it('treats a large positive error as behind', () => {
+    expect(actualTiming(score(70, { meanTimingErrorMs: 90 }))).toBe('behind')
+  })
+
+  it('treats a large negative error as ahead', () => {
+    expect(actualTiming(score(70, { meanTimingErrorMs: -90 }))).toBe('ahead')
+  })
+
+  it('records nothing about an estimate that was not made', () => {
+    expect(applyAttempt(createSnapshot(DAY_ONE), input()).attempt.estimateWasRight).toBeNull()
+  })
+
+  it('withholds an estimate-accuracy figure until there is enough to report', () => {
+    const snapshot = run([{ selfEstimate: 'on-it' }, { selfEstimate: 'on-it' }])
+    expect(selfEstimateAccuracy(snapshot.history)).toBeNull()
+  })
+
+  it('reports how often the learner reads their own timing correctly', () => {
+    const snapshot = run(Array(6).fill({ selfEstimate: 'on-it' as const }))
+    expect(selfEstimateAccuracy(snapshot.history)).toBe(1)
   })
 })

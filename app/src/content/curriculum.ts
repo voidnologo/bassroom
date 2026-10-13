@@ -28,13 +28,16 @@ export const LESSONS: Lesson[] = [
     summary:
       'Tune the bass, check the app can hear you, and measure the delay through your interface.',
     briefing: [
-      'Plug the bass into input 1 on the Scarlett and turn the gain up until the halo ring glows green when you play hard. If it flashes red, the signal is clipping and the pitch detector will struggle.',
-      "Use the interface's own direct monitoring to hear yourself, not the app. It is faster, and it keeps the browser from feeding sound back into the input.",
+      'Check the instrument before you check yourself. Three of the most common reasons a beginner concludes they have no aptitude are a buzzing fret, an action set too high to press, and a bass that is simply out of tune. All three feel exactly like failing, and none of them is.',
+      'Fret every note on every string, one at a time, and listen. A buzz in one place is a fret that needs levelling. A buzz everywhere above the fifth fret usually means the neck needs a truss rod adjustment. Either is a setup job, not a practice problem, and a shop will do it in an hour.',
+      'Press a string down at the twelfth fret. If it takes real force, the action is too high, and you are about to spend months building pain instead of technique. Have it lowered.',
+      'Plug into input 1 on the Scarlett and raise the gain until the halo ring glows green when you play hard. If it flashes red the signal is clipping, which makes the pitch harder to read rather than easier.',
+      "Monitor through the interface's own direct monitoring rather than through the app. It is lower latency, and it stops speaker output from reaching the input.",
       'Latency calibration measures how long a note takes to travel from the string to this app. Without it, the app will tell you that you are consistently late when you are not.',
     ],
     exerciseIds: [],
     requires: [],
-    estimatedMinutes: 10,
+    estimatedMinutes: 15,
   },
   {
     id: 'plucking-hand',

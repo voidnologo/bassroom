@@ -26,6 +26,9 @@ function attempt(overrides: Partial<Attempt> = {}): Attempt {
     targetBpm: 100,
     stars: 1,
     durationSeconds: 30,
+    isProbe: false,
+    selfEstimate: null,
+    estimateWasRight: null,
     score: {
       pitchAccuracy: 0.9,
       timingAccuracy: 0.8,

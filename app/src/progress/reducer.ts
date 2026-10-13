@@ -22,6 +22,7 @@ import {
   type ExerciseProgress,
   type LearnerProfile,
   type ProgressSnapshot,
+  type SelfEstimate,
 } from './types'
 
 /**
@@ -97,6 +98,9 @@ export interface AttemptInput {
   /** Exercise ids that count as scale drills, for the scale badge. */
   scaleExerciseIds: string[]
   now: Date
+  /** True when the take was played with the feedback display off. */
+  isProbe?: boolean
+  selfEstimate?: SelfEstimate | null
 }
 
 /**
@@ -106,6 +110,7 @@ export interface AttemptInput {
 export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): AttemptResult {
   const { exercise, score, bpm, durationSeconds, now } = input
   const stars = starsFor(score, bpm, exercise.targetBpm)
+  const selfEstimate = input.selfEstimate ?? null
   const attempt: Attempt = {
     exerciseId: exercise.id,
     completedAt: now.toISOString(),
@@ -114,6 +119,9 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     score,
     stars,
     durationSeconds,
+    isProbe: input.isProbe ?? false,
+    selfEstimate,
+    estimateWasRight: selfEstimate === null ? null : selfEstimate === actualTiming(score),
   }
 
   const previous = progressFor(snapshot, exercise, now)
@@ -167,6 +175,17 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
     streakOutcome: streakUpdate.outcome,
     ladder,
   }
+}
+
+/**
+ * What the measurement says, in the same three buckets the learner chose from.
+ * The threshold is the point at which a player can perceive their own error.
+ */
+export function actualTiming(score: PerformanceScore): SelfEstimate {
+  const PERCEPTIBLE_MS = 25
+  if (score.meanTimingErrorMs > PERCEPTIBLE_MS) return 'behind'
+  if (score.meanTimingErrorMs < -PERCEPTIBLE_MS) return 'ahead'
+  return 'on-it'
 }
 
 function gapBeforeToday(profile: LearnerProfile, now: Date): number | null {
@@ -249,4 +268,27 @@ export function buildDailyPlan(
   }
 
   return plan
+}
+
+/**
+ * The retention figure to show as progress: recent probe takes only.
+ *
+ * Accuracy measured while the highway, the fretboard marker and the live note
+ * readout are all helping is inflated by exactly the help being given. The
+ * probe is what is left when that is taken away.
+ */
+export function retentionScore(history: Attempt[], now: Date, windowDays = 14): number | null {
+  const since = now.getTime() - windowDays * 86_400_000
+  const probes = history.filter(
+    (item) => item.isProbe && new Date(item.completedAt).getTime() >= since,
+  )
+  if (probes.length === 0) return null
+  return Math.round(probes.reduce((sum, item) => sum + item.score.overall, 0) / probes.length)
+}
+
+/** How often the learner's guess about their own timing matched the measurement. */
+export function selfEstimateAccuracy(history: Attempt[]): number | null {
+  const guessed = history.filter((item) => item.estimateWasRight !== null)
+  if (guessed.length < 5) return null
+  return guessed.filter((item) => item.estimateWasRight).length / guessed.length
 }

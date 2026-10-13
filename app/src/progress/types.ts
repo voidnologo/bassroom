@@ -5,6 +5,15 @@ import type { SkillId } from '../music/types'
 /** Schema version for everything persisted and everything sent to a coach. */
 export const PROGRESS_SCHEMA_VERSION = 1
 
+/**
+ * What the learner guessed about their own timing before being shown it.
+ *
+ * Asking costs two seconds and is the best-evidenced single intervention in the
+ * motor-learning literature for building an internal error-detection sense,
+ * which is what lets someone practise usefully without the app.
+ */
+export type SelfEstimate = 'ahead' | 'behind' | 'on-it'
+
 /** One completed take of one exercise. */
 export interface Attempt {
   exerciseId: string
@@ -16,6 +25,16 @@ export interface Attempt {
   stars: Star
   /** Seconds of actual playing, excluding the count-in. */
   durationSeconds: number
+  /**
+   * A probe is played with the feedback display off, and is the honest measure
+   * of what has been learned. Accuracy during guided practice is inflated by
+   * the guidance itself, so a product that reports it as progress is reporting
+   * the wrong number.
+   */
+  isProbe: boolean
+  selfEstimate: SelfEstimate | null
+  /** Whether the guess matched the measurement. Null when no guess was made. */
+  estimateWasRight: boolean | null
 }
 
 /**

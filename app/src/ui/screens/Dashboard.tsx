@@ -1,7 +1,14 @@
 import { ALL_EXERCISES, LESSONS, lessonById } from '../../content/curriculum'
 import { badgeById, levelFor } from '../../progress/gamification'
-import { buildDailyPlan, minutesPracticedOn, type DailyPlanItem } from '../../progress/reducer'
+import {
+  buildDailyPlan,
+  minutesPracticedOn,
+  retentionScore,
+  selfEstimateAccuracy,
+  type DailyPlanItem,
+} from '../../progress/reducer'
 import { useProgressStore } from '../../state/progressStore'
+import type { ProgressSnapshot } from '../../progress/types'
 import { LevelBar, Meter, Pill, Stars } from '../components/Indicators'
 
 /** Where a session starts: what to play today, and what has been earned so far. */
@@ -66,6 +73,8 @@ export function Dashboard({
           <LevelBar xp={snapshot.profile.xp} />
         </div>
       </div>
+
+      <Retention snapshot={snapshot} today={today} />
 
       <div className="card">
         <h3>Practise this</h3>
@@ -132,6 +141,40 @@ export function Dashboard({
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The figure worth trusting, and the one the app reports as progress.
+ *
+ * Accuracy measured with the highway scrolling, the fretboard marked and the
+ * live note on screen is inflated by exactly that help. A retention check is
+ * the same music with all of it switched off.
+ */
+function Retention({ snapshot, today }: { snapshot: ProgressSnapshot; today: Date }) {
+  const score = retentionScore(snapshot.history, today)
+  const reading = selfEstimateAccuracy(snapshot.history)
+
+  return (
+    <div className="card">
+      <div className="row-between wrap" style={{ gap: 16 }}>
+        <div className="stat">
+          <span className="stat-value">{score === null ? '—' : score}</span>
+          <span className="stat-label">Retention, last 14 days</span>
+        </div>
+        <div className="stat">
+          <span className="stat-value">
+            {reading === null ? '—' : `${Math.round(reading * 100)}%`}
+          </span>
+          <span className="stat-label">Reading your own timing</span>
+        </div>
+        <p className="small muted" style={{ flex: 1, minWidth: 260, margin: 0 }}>
+          {score === null
+            ? 'Tick "retention check" on a take to play it with every cue hidden. That score is the one worth watching, because it is what you can do without the app helping.'
+            : 'Scored from takes played with the cues hidden. In-practice accuracy is flattered by the help on screen; this is not.'}
+        </p>
       </div>
     </div>
   )

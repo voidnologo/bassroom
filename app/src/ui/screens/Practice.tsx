@@ -11,10 +11,12 @@ import type { ExerciseProgress } from '../../progress/types'
 import { useProgressStore } from '../../state/progressStore'
 import { useAudio } from '../../state/AudioProvider'
 import { CoachPanel } from '../components/CoachPanel'
-import { Fretboard } from '../components/Fretboard'
+import { Fretboard, type FretboardProps } from '../components/Fretboard'
 import { BeatDots, Meter, Pill, Stars, VerdictStrip } from '../components/Indicators'
 import { NoteHighway } from '../components/NoteHighway'
+import { EstimateOutcome, SelfEstimatePrompt } from '../components/SelfEstimate'
 import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
+import { isDue } from '../../progress/srs'
 
 /**
  * The screen the learner spends their practice on: what to play, where it is on
@@ -35,7 +37,14 @@ export function Practice({
   const [bpm, setBpm] = useState(progress.ladder.currentBpm)
   useEffect(() => setBpm(progress.ladder.currentBpm), [exercise.id, progress.ladder.currentBpm])
 
-  const { take, targets, beatRef, verdictsRef, start, stop, ready } = usePracticeTake(exercise, bpm)
+  // A review that is due defaults to a probe: measuring what has been retained
+  // is only honest when the cues that inflate it are switched off.
+  const dueForReview = progress.attempts > 0 && isDue(progress.review, new Date())
+  const [isProbe, setIsProbe] = useState(dueForReview)
+  useEffect(() => setIsProbe(dueForReview), [exercise.id, dueForReview])
+
+  const { take, targets, beatRef, verdictsRef, start, stop, submitEstimate, ready } =
+    usePracticeTake(exercise, bpm, { isProbe, askForEstimate: exercise.mode === 'play-along' })
 
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
 
@@ -59,9 +68,13 @@ export function Practice({
         onBpm={setBpm}
         onStart={start}
         onStop={stop}
+        isProbe={isProbe}
+        onProbe={setIsProbe}
       />
 
-      {take.lastResult && take.lastAttempt && (
+      {take.awaitingEstimate && <SelfEstimatePrompt onAnswer={submitEstimate} />}
+
+      {!take.awaitingEstimate && take.lastResult && take.lastAttempt && (
         <Result
           exercise={exercise}
           bpm={take.lastResult.bpm}
@@ -109,6 +122,8 @@ interface StageProps {
   onBpm: (bpm: number) => void
   onStart: () => void
   onStop: () => void
+  isProbe: boolean
+  onProbe: (isProbe: boolean) => void
 }
 
 const RUNNING_PHASES = new Set(['count-in', 'playing', 'judging'])
@@ -121,33 +136,26 @@ function currentPrompt(props: StageProps): TargetNote | undefined {
 }
 
 function Stage(props: StageProps) {
-  const { exercise, take, targets, beatRef, verdictsRef } = props
+  const { exercise, take, targets, beatRef, verdictsRef, isProbe } = props
   const running = RUNNING_PHASES.has(take.phase)
   const prompt = currentPrompt(props)
   const position = positionOf(prompt)
+  // During a probe every live cue is withheld, including where the note is.
+  const showCues = !isProbe || !running
 
   return (
     <div className="practice-stage stack" style={{ gap: 16 }}>
-      <div className="row-between wrap">
-        <div className="target-note">
-          <span className="name">{prompt ? noteName(prompt.midi) : '—'}</span>
-          <span className="where">{whereText(position, prompt)}</span>
-        </div>
-        <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
-          <BeatDots beatsPerBar={exercise.timeSignature[0]} current={take.beatInBar} />
-          <span className="tiny faint mono">{hearingText(take)}</span>
-        </div>
-      </div>
-
-      <Fretboard
-        target={position}
-        finger={prompt?.finger ?? null}
-        detectedMidi={take.heard?.midi ?? null}
-        detectedCents={take.heard?.cents ?? 0}
-        fretCount={fretWindowFor(targets)}
+      <NowPlaying
+        prompt={prompt}
+        position={position}
+        showCues={showCues}
+        take={take}
+        beatsPerBar={exercise.timeSignature[0]}
       />
 
-      {exercise.mode !== 'call-response' && (
+      <Fretboard {...fretboardPropsFor({ prompt, position, showCues, take, targets })} />
+
+      {exercise.mode !== 'call-response' && showCues && (
         <NoteHighway
           notes={targets}
           beatRef={beatRef}
@@ -170,6 +178,8 @@ function TransportBar({
   take,
   onStart,
   onStop,
+  isProbe,
+  onProbe,
 }: StageProps & { running: boolean }) {
   const percentOfTarget = Math.round((bpm / exercise.targetBpm) * 100)
   return (
@@ -184,6 +194,7 @@ function TransportBar({
           {running ? 'Stop' : 'Start take'}
         </button>
         <Pill tone={take.phase === 'count-in' ? 'warn' : 'plain'}>{phaseLabel(take.phase)}</Pill>
+        <ProbeToggle checked={isProbe} disabled={running} onChange={onProbe} />
       </div>
 
       <div className="stack" style={{ flex: 1, minWidth: 260, gap: 4 }}>
@@ -207,6 +218,76 @@ function TransportBar({
   )
 }
 
+/** Everything the neck diagram shows, with the probe case resolved in one place. */
+function fretboardPropsFor(options: {
+  prompt: TargetNote | undefined
+  position: Position | null
+  showCues: boolean
+  take: TakeState
+  targets: TargetNote[]
+}): FretboardProps {
+  const { prompt, position, showCues, take, targets } = options
+  if (!showCues) return { target: null, detectedMidi: null, fretCount: fretWindowFor(targets) }
+  return {
+    target: position,
+    finger: prompt?.finger ?? null,
+    detectedMidi: take.heard?.midi ?? null,
+    detectedCents: take.heard?.cents ?? 0,
+    fretCount: fretWindowFor(targets),
+  }
+}
+
+function NowPlaying({
+  prompt,
+  position,
+  showCues,
+  take,
+  beatsPerBar,
+}: {
+  prompt: TargetNote | undefined
+  position: Position | null
+  showCues: boolean
+  take: TakeState
+  beatsPerBar: number
+}) {
+  return (
+    <div className="row-between wrap">
+      <div className="target-note">
+        <span className="name">{prompt && showCues ? noteName(prompt.midi) : '—'}</span>
+        <span className="where">{showCues ? whereText(position, prompt) : 'retention check'}</span>
+      </div>
+      <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
+        <BeatDots beatsPerBar={beatsPerBar} current={take.beatInBar} />
+        <span className="tiny faint mono">{hearingText(take)}</span>
+      </div>
+    </div>
+  )
+}
+
+function ProbeToggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean
+  disabled: boolean
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <label className="row tiny muted" style={{ gap: 6, cursor: disabled ? 'default' : 'pointer' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span title="Play with every cue hidden. This is the score worth trusting.">
+        Retention check
+      </span>
+    </label>
+  )
+}
+
 function Result({
   exercise,
   bpm,
@@ -225,6 +306,7 @@ function Result({
       <div className="row-between wrap" style={{ marginBottom: 14 }}>
         <h3 style={{ margin: 0 }}>That take</h3>
         <div className="row" style={{ gap: 14 }}>
+          {attempt.attempt.isProbe && <Pill tone="good">retention check</Pill>}
           <Stars value={starsFor(score, bpm, exercise.targetBpm)} />
           <Pill tone="good">+{attempt.xp.total} XP</Pill>
           {attempt.newBadges.map((badge) => (
@@ -249,6 +331,10 @@ function Result({
       </div>
 
       <VerdictStrip verdicts={verdicts} />
+      <EstimateOutcome
+        guess={attempt.attempt.selfEstimate}
+        wasRight={attempt.attempt.estimateWasRight}
+      />
       <p className="small muted" style={{ marginTop: 12 }}>
         {attempt.ladder.message}
       </p>
