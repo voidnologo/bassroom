@@ -47,7 +47,7 @@ function request(notes: PlayedNote[], bpm = 60, recentTakes: TakeTelemetry[] = [
       daysSinceFirstPractice: 5,
     },
   })
-  return { telemetry, exercise: eightNotes, judgments, recentTakes }
+  return { telemetry, recentTakes }
 }
 
 /** A take of the given quality, used to build a history. */
@@ -188,12 +188,7 @@ describe('HeuristicCoach', () => {
         daysSinceFirstPractice: 0,
       },
     })
-    const feedback = await coach.analyze({
-      telemetry,
-      exercise: sixteen,
-      judgments,
-      recentTakes: [],
-    })
+    const feedback = await coach.analyze({ telemetry, recentTakes: [] })
     expect(feedback.observations.map((o) => o.id)).toContain('fades-late')
   })
 

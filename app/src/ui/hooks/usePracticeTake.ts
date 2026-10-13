@@ -225,8 +225,6 @@ function useTakeCompletion(
       void recordTake(telemetry)
       const feedback = await coach.analyze({
         telemetry,
-        exercise,
-        judgments: result.judgments,
         recentTakes: recentTakesRef.current,
       })
       recentTakesRef.current = [telemetry, ...recentTakesRef.current].slice(0, 5)

@@ -1,5 +1,4 @@
-import type { NoteJudgment, PerformanceScore, Verdict } from '../engine/judge'
-import type { Exercise } from '../music/types'
+import type { PerformanceScore, Verdict } from '../engine/judge'
 
 /**
  * The boundary between the app and whatever is giving feedback.
@@ -93,8 +92,6 @@ export interface CoachFeedback {
 
 export interface CoachRequest {
   telemetry: TakeTelemetry
-  exercise: Exercise
-  judgments: NoteJudgment[]
   /** Telemetry from recent takes of the same exercise, newest first. */
   recentTakes: TakeTelemetry[]
 }

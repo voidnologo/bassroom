@@ -1,6 +1,5 @@
 import type { PerformanceScore } from '../engine/judge'
 import type { LadderState, Star } from '../engine/tempoLadder'
-import type { SkillId } from '../music/types'
 
 /** Schema version for everything persisted and everything sent to a coach. */
 export const PROGRESS_SCHEMA_VERSION = 1
@@ -67,13 +66,6 @@ export interface ExerciseProgress {
   ladder: LadderState
   review: ReviewState
   lastPracticedAt: string | null
-}
-
-export interface SkillStrength {
-  skill: SkillId
-  /** 0..1, blended from the best scores of every exercise training it. */
-  strength: number
-  exerciseCount: number
 }
 
 export type BadgeId =
