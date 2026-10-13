@@ -4,6 +4,8 @@ A practice coach for learning bass guitar from nothing. It listens to you play t
 
 Both songs are in `tabs/`, transcribed and cross-checked. Both are playable inside the app at any tempo from a crawl upward.
 
+![The practice screen during a take: the target note named at the top, the fretboard showing where to put your hand, and the note highway scrolling through the playhead below it](docs/screenshots/practice.jpg)
+
 ## Running it
 
 You need Node 20 or newer, a bass, and an audio interface. A Focusrite Scarlett Solo is what this was built against.
@@ -36,6 +38,13 @@ Firefox and Safari will mostly work, but Chrome is the one with reliable `AudioW
 
 **Keeps you coming back.** XP, levels, badges, and a streak that bends before it breaks: two missed days are covered automatically and earned back weekly, because a streak that one bad week destroys mostly produces guilt and then abandonment.
 
+## A look at it
+
+|     |     |
+| --- | --- |
+| <img src="docs/screenshots/today.jpg" alt="The Today screen, showing the daily goal, streak and level, and a short list of exercises to practise"><br>**Today** — reviews first, then what is already underway, then new material. | <img src="docs/screenshots/path.jpg" alt="The lesson path, showing the Foundations unit and the exercises inside each lesson"><br>**The path** — each lesson opens once the one it needs is passed. |
+| <img src="docs/screenshots/self-estimate.jpg" alt="A prompt reading 'Before you look — how was your timing?' with buttons for Ahead, On it and Behind"><br>**Asked before told** — you guess, then you see the numbers. | <img src="docs/screenshots/songs.jpg" alt="The Songs screen showing generated bass tab for This Is the Christ with chord symbols and bar numbers"><br>**Songs** — the tab is generated from the notes the app plays. |
+
 ## The path
 
 Ten lessons in four units, from "which string is which" to the complete hymn. Material from both target songs appears as early as it can be played, so the work is always visibly going somewhere.
@@ -53,7 +62,7 @@ See [docs/curriculum.md](docs/curriculum.md) for what each lesson is for and why
 
 **[This Is the Christ](tabs/this-is-the-christ.md)** — the notes come from the publisher's own MusicXML rather than from ear, so the pitches, the chord symbols, the 3/4-to-4/4 change at bar 12 and the key change into the chorus are all exact. Two arrangements: chord roots, and the hymn's own bass line moved into the bass guitar's register.
 
-**[Angel](tabs/angel-massive-attack.md)** — the entire six-minute part is two notes, C and the D above it, which makes it an unusually good first song: there is almost no fingering to learn and all the difficulty is rhythm. Four arrangements, each adding one thing.
+**[Angel](tabs/angel.md)** — the entire six-minute part is two notes, C and the D above it, which makes it an unusually good first song: there is almost no fingering to learn and all the difficulty is rhythm. Four arrangements, each adding one thing.
 
 The tab files are generated from the same data the app plays, by `npm run tabs`, and CI fails if they drift apart.
 
