@@ -1,0 +1,67 @@
+name: CI
+
+# No `paths:` filter. The checks are whole-repo, so a change to config can
+# still change the outcome, and a path-filtered job that never starts reports
+# as "expected but not received" when it is a required check - which blocks
+# merges instead of gating them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - run: npm ci
+
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test:coverage
+
+      - name: Tab files match the song data
+        run: npm run tabs:check
+
+      - name: Build
+        run: npm run build
+
+      - name: Quality gates
+        run: node ../.claude/skills/quality-check/scripts/gates.mjs --all
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          {
+            echo '## How to reproduce this locally'
+            echo
+            echo '```'
+            echo 'cd app && npm ci && npm run verify'
+            echo 'node ../.claude/skills/quality-check/scripts/gates.mjs --all'
+            echo '```'
+            echo
+            echo 'A complexity or nesting failure is fixed by extracting a named'
+            echo 'function, not by raising the budget. See .claude/rules/complexity.md (CX5).'
+            echo
+            echo 'A stale-tab failure means a song chart changed without regenerating'
+            echo 'tabs/: run `npm run tabs`.'
+          } >> "$GITHUB_STEP_SUMMARY"
