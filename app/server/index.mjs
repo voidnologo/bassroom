@@ -174,6 +174,32 @@ export function extractJson(text) {
 }
 
 /** One file per day, one take per line: greppable, appendable, and diffable. */
+export function diagnosticsFileFor(date) {
+  return sessionFileFor(date).replace('takes-', 'diagnostics-')
+}
+
+/**
+ * Names the first field that is wrong, rather than reporting "invalid body".
+ * Returns null when the record is acceptable.
+ */
+export function describeBadDiagnostics(payload) {
+  if (typeof payload !== 'object' || payload === null || Array.isArray(payload))
+    return 'Expected a diagnostics object'
+  if (!Number.isInteger(payload.schemaVersion) || payload.schemaVersion < 1)
+    return 'schemaVersion must be a positive integer'
+  return describeBadDiagnosticsBody(payload)
+}
+
+function describeBadDiagnosticsBody(payload) {
+  if (payload.kind !== 'take' && payload.kind !== 'calibration')
+    return `kind must be "take" or "calibration", got ${JSON.stringify(payload.kind)}`
+  if (typeof payload.recordedAt !== 'string' || Number.isNaN(Date.parse(payload.recordedAt)))
+    return `recordedAt must be an ISO timestamp, got ${JSON.stringify(payload.recordedAt)}`
+  if (!Array.isArray(payload.frames)) return 'frames must be an array'
+  if (!Array.isArray(payload.onsets)) return 'onsets must be an array'
+  return null
+}
+
 export function sessionFileFor(date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -198,6 +224,25 @@ async function handleRecordTake(request, response) {
   sendJson(response, 201, { recorded: true, file })
 }
 
+/**
+ * The raw signal behind a take, for tuning the detector against a real
+ * instrument. Written to its own file because it is large, optional, and read
+ * by a person rather than by the app.
+ */
+async function handleRecordDiagnostics(request, response) {
+  const payload = await readJsonBody(request)
+  const problem = describeBadDiagnostics(payload)
+  if (problem !== null) {
+    sendJson(response, 400, { error: problem })
+    return
+  }
+
+  await mkdir(SESSIONS_DIR, { recursive: true })
+  const file = join(SESSIONS_DIR, diagnosticsFileFor(new Date()))
+  await appendFile(file, `${JSON.stringify(payload)}\n`, 'utf8')
+  sendJson(response, 201, { recorded: true, file })
+}
+
 const ROUTES = [
   {
     method: 'GET',
@@ -206,6 +251,7 @@ const ROUTES = [
   },
   { method: 'POST', path: '/api/coach/review', handle: handleReview },
   { method: 'POST', path: '/api/takes', handle: handleRecordTake },
+  { method: 'POST', path: '/api/diagnostics', handle: handleRecordDiagnostics },
 ]
 
 const server = createServer(async (request, response) => {

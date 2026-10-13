@@ -49,6 +49,7 @@ function profile(overrides: Partial<LearnerProfile> = {}): LearnerProfile {
   return {
     schemaVersion: 1,
     createdAt: DAY_ONE.toISOString(),
+    diagnosticsEnabled: false,
     xp: 0,
     streak: createStreak(),
     badges: [],

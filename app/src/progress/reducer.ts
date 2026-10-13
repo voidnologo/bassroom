@@ -47,6 +47,7 @@ export function createSnapshot(now: Date): ProgressSnapshot {
       badges: [],
       dailyGoalMinutes: 15,
       inputLatencyMs: 0,
+      diagnosticsEnabled: false,
       preferredDeviceId: null,
     },
     exercises: {},

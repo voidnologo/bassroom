@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error - the coach server is plain ESM with no type declarations
-import { extractJson, sessionFileFor } from '../../server/index.mjs'
+import {
+  describeBadDiagnostics,
+  diagnosticsFileFor,
+  extractJson,
+  sessionFileFor,
+  // @ts-expect-error - the coach server is plain ESM with no type declarations
+} from '../../server/index.mjs'
 
 const parse = extractJson as (text: string) => string
 const fileFor = sessionFileFor as (date: Date) => string
+const diagnosticsFile = diagnosticsFileFor as (date: Date) => string
+const describeBad = describeBadDiagnostics as (payload: unknown) => string | null
 
 describe('extractJson', () => {
   it('returns a bare JSON object unchanged', () => {
@@ -49,5 +56,51 @@ describe('sessionFileFor', () => {
       fileFor(new Date('2026-12-31T10:00:00')),
     ]
     expect([...names].sort()).toEqual([names[1], names[0], names[2]])
+  })
+})
+
+describe('diagnosticsFileFor', () => {
+  it('sits beside the take log for the same day', () => {
+    const day = new Date('2026-10-13T19:00:00')
+    expect(diagnosticsFile(day)).toBe('diagnostics-2026-10-13.jsonl')
+    expect(fileFor(day)).toBe('takes-2026-10-13.jsonl')
+  })
+})
+
+describe('describeBadDiagnostics', () => {
+  const valid = {
+    schemaVersion: 1,
+    kind: 'take',
+    recordedAt: '2026-10-13T19:00:00.000Z',
+    frames: [],
+    onsets: [],
+  }
+
+  it('accepts a well-formed record', () => {
+    expect(describeBad(valid)).toBeNull()
+  })
+
+  it.each([
+    ['an array', []],
+    ['a string', 'take'],
+    ['null', null],
+  ])('rejects %s as a body', (_name, payload) => {
+    expect(describeBad(payload)).toBe('Expected a diagnostics object')
+  })
+
+  it('names the field when the kind is one nobody defined', () => {
+    expect(describeBad({ ...valid, kind: 'warmup' })).toContain('kind must be')
+  })
+
+  it('rejects a timestamp that does not parse, rather than storing it', () => {
+    expect(describeBad({ ...valid, recordedAt: 'yesterday' })).toContain('recordedAt must be')
+  })
+
+  it('rejects frames that are not an array, which would break every reader', () => {
+    expect(describeBad({ ...valid, frames: 42 })).toBe('frames must be an array')
+  })
+
+  it('rejects a record with no schema version, because it cannot be read later', () => {
+    expect(describeBad({ ...valid, schemaVersion: 0 })).toContain('schemaVersion')
   })
 })

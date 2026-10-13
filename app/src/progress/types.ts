@@ -114,6 +114,12 @@ export interface LearnerProfile {
   badges: BadgeId[]
   /** Minutes of practice the learner is aiming for each day. */
   dailyGoalMinutes: number
+  /**
+   * Record the raw detector signal behind every take. Off by default: it is
+   * only wanted while tuning the constants against a real instrument, and a
+   * take produces thousands of frames.
+   */
+  diagnosticsEnabled: boolean
   /** Measured input latency in milliseconds, from calibration. */
   inputLatencyMs: number
   /** Audio input device the learner selected, if the browser will remember it. */

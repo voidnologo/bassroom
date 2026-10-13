@@ -17,6 +17,7 @@ import type { AttemptResult } from '../../progress/reducer'
 import type { SelfEstimate } from '../../progress/types'
 import { useAudio } from '../../state/AudioProvider'
 import { scaleExerciseIdsFrom, useProgressStore } from '../../state/progressStore'
+import { useDiagnosticsRecorder, type DiagnosticsHandle } from './useDiagnosticsRecorder'
 import { ALL_EXERCISES } from '../../content/curriculum'
 import type { ProgressSnapshot } from '../../progress/types'
 
@@ -92,7 +93,16 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
   const [take, setTake] = useState<TakeState>(initialState)
   const pendingRef = useRef<SessionResult | null>(null)
   const targets: TargetNote[] = useMemo(() => expandRepeats(exercise), [exercise])
-  const complete = useTakeCompletion({ exercise, coach, snapshot, setTake, verdictsRef, options })
+  const diagnostics = useDiagnosticsRecorder(engine, snapshot.profile.diagnosticsEnabled)
+  const complete = useTakeCompletion({
+    exercise,
+    coach,
+    snapshot,
+    setTake,
+    verdictsRef,
+    options,
+    diagnostics,
+  })
 
   /**
    * A take either completes straight away, or waits for the learner's estimate
@@ -120,36 +130,17 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
     [complete],
   )
 
-  /**
-   * `atBpm` is optional, but an event handler must not be wired to this
-   * directly: React would pass the click event as the tempo.
-   */
-  const start = useCallback(
-    (atBpm?: number) => {
-      const takeBpm = typeof atBpm === 'number' && Number.isFinite(atBpm) ? atBpm : bpm
-      // A take left waiting for an estimate is finished but unrecorded; starting
-      // another would drop it silently. Record it with no estimate instead.
-      const unrated = pendingRef.current
-      pendingRef.current = null
-      if (unrated) complete(unrated, null)
-
-      sessionRef.current?.dispose()
-      engine.resetAnalysis()
-      verdictsRef.current = new Map()
-      beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
-      setTake({ ...initialState, phase: 'count-in' })
-
-      const session = buildSession({
-        engine,
-        latencyMs: snapshot.profile.inputLatencyMs,
-        setTake,
-        onFinish: finish,
-      })
-      sessionRef.current = session
-      session.start(exercise, takeBpm)
-    },
-    [bpm, complete, engine, exercise, finish, snapshot.profile.inputLatencyMs],
-  )
+  const start = useStartTake({
+    engine,
+    exercise,
+    bpm,
+    latencyMs: snapshot.profile.inputLatencyMs,
+    complete,
+    finish,
+    diagnostics,
+    refs: { sessionRef, pendingRef, verdictsRef, beatRef },
+    setTake,
+  })
 
   const stop = useCallback(() => {
     sessionRef.current?.stop()
@@ -189,6 +180,7 @@ interface CompletionOptions {
   setTake: SetTake
   verdictsRef: React.MutableRefObject<Map<number, Verdict>>
   options: TakeOptions
+  diagnostics: DiagnosticsHandle
 }
 
 /**
@@ -199,7 +191,7 @@ interface CompletionOptions {
 function useTakeCompletion(
   completion: CompletionOptions,
 ): (result: SessionResult, estimate: SelfEstimate | null) => void {
-  const { exercise, coach, snapshot, setTake, verdictsRef, options } = completion
+  const { exercise, coach, snapshot, setTake, verdictsRef, options, diagnostics } = completion
   const recordAttempt = useProgressStore((store) => store.recordAttempt)
   const recentTakesRef = useRef<TakeTelemetry[]>([])
 
@@ -223,6 +215,14 @@ function useTakeCompletion(
       })
 
       void recordTake(telemetry)
+      diagnostics.flush({
+        kind: 'take',
+        now: new Date(),
+        takeId: telemetry.takeId,
+        exerciseId: exercise.id,
+        bpm: telemetry.bpm,
+        latencyCorrectionMs: telemetry.latencyCorrectionMs,
+      })
       const feedback = await coach.analyze({
         telemetry,
         recentTakes: recentTakesRef.current,
@@ -230,7 +230,7 @@ function useTakeCompletion(
       recentTakesRef.current = [telemetry, ...recentTakesRef.current].slice(0, 5)
       setTake((current) => ({ ...current, feedback, coachPending: false }))
     },
-    [coach, exercise, setTake, snapshot],
+    [coach, diagnostics, exercise, setTake, snapshot],
   )
 
   return useCallback(
@@ -356,6 +356,68 @@ async function recordTake(telemetry: TakeTelemetry): Promise<boolean> {
 
 function daysSince(isoDate: string): number {
   return Math.max(0, Math.floor((Date.now() - new Date(isoDate).getTime()) / 86_400_000))
+}
+
+interface StartTakeOptions {
+  engine: Engine
+  exercise: Exercise
+  bpm: number
+  latencyMs: number
+  complete: (result: SessionResult, estimate: SelfEstimate | null) => void
+  finish: (result: SessionResult) => void
+  diagnostics: DiagnosticsHandle
+  refs: {
+    sessionRef: React.MutableRefObject<PracticeSession | null>
+    pendingRef: React.MutableRefObject<SessionResult | null>
+    verdictsRef: React.MutableRefObject<Map<number, Verdict>>
+    beatRef: React.MutableRefObject<number>
+  }
+  setTake: SetTake
+}
+
+/**
+ * `atBpm` is optional, but an event handler must not be wired to the result
+ * directly: React would pass the click event as the tempo.
+ */
+function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
+  const { engine, exercise, bpm, latencyMs, complete, finish, diagnostics, refs, setTake } = options
+  const { sessionRef, pendingRef, verdictsRef, beatRef } = refs
+
+  return useCallback(
+    (atBpm?: number) => {
+      const takeBpm = typeof atBpm === 'number' && Number.isFinite(atBpm) ? atBpm : bpm
+      // A take left waiting for an estimate is finished but unrecorded; starting
+      // another would drop it silently. Record it with no estimate instead.
+      const unrated = pendingRef.current
+      pendingRef.current = null
+      if (unrated) complete(unrated, null)
+      diagnostics.begin()
+
+      sessionRef.current?.dispose()
+      engine.resetAnalysis()
+      verdictsRef.current = new Map()
+      beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
+      setTake({ ...initialState, phase: 'count-in' })
+
+      const session = buildSession({ engine, latencyMs, setTake, onFinish: finish })
+      sessionRef.current = session
+      session.start(exercise, takeBpm)
+    },
+    [
+      bpm,
+      complete,
+      diagnostics,
+      engine,
+      exercise,
+      finish,
+      latencyMs,
+      beatRef,
+      pendingRef,
+      sessionRef,
+      setTake,
+      verdictsRef,
+    ],
+  )
 }
 
 function buildSession(options: {

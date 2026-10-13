@@ -10,6 +10,7 @@ export function Settings() {
   const setDailyGoalMinutes = useProgressStore((store) => store.setDailyGoalMinutes)
   const setLatencyMs = useProgressStore((store) => store.setLatencyMs)
   const resetEverything = useProgressStore((store) => store.resetEverything)
+  const setDiagnosticsEnabled = useProgressStore((store) => store.setDiagnosticsEnabled)
   const storageError = useProgressStore((store) => store.storageError)
 
   const [provider, setProvider] = useState('checking…')
@@ -101,6 +102,11 @@ export function Settings() {
         </div>
       </div>
 
+      <DiagnosticsToggle
+        enabled={snapshot.profile.diagnosticsEnabled}
+        onChange={setDiagnosticsEnabled}
+      />
+
       <div className="card">
         <h3>Your data</h3>
         <p className="small muted">
@@ -155,4 +161,36 @@ function downloadSnapshot(snapshot: unknown): void {
   anchor.download = `bassroom-progress-${new Date().toISOString().slice(0, 10)}.json`
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+/**
+ * Only worth turning on while checking the detector against a real
+ * instrument: a take writes thousands of frames, and nothing in the app reads
+ * them back.
+ */
+function DiagnosticsToggle({
+  enabled,
+  onChange,
+}: {
+  enabled: boolean
+  onChange: (enabled: boolean) => void
+}): JSX.Element {
+  return (
+    <div className="card">
+      <h3>Detector diagnostics</h3>
+      <p className="small muted">
+        Records the raw pitch frames and attacks behind every take, beside the practice log, so the
+        onset and clarity constants can be checked against a real bass rather than a synthesised
+        one. Off unless you are tuning.
+      </p>
+      <label className="row" style={{ gap: 8, marginTop: 12 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) => onChange(event.target.checked)}
+        />
+        <span>Record the raw signal behind each take</span>
+      </label>
+    </div>
+  )
 }

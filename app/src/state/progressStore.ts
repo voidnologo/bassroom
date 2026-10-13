@@ -37,6 +37,7 @@ interface ProgressStore {
   load: () => Promise<void>
   recordAttempt: (input: Omit<AttemptInput, 'now'>) => AttemptResult
   setLatencyMs: (latencyMs: number) => void
+  setDiagnosticsEnabled: (enabled: boolean) => void
   setPreferredDevice: (deviceId: string | null) => void
   setDailyGoalMinutes: (minutes: number) => void
   resetEverything: () => void
@@ -166,6 +167,12 @@ export const useProgressStore = create<ProgressStore>((set, getState) => {
       save(result.snapshot)
       return result
     },
+
+    setDiagnosticsEnabled: (enabled) =>
+      update((snapshot) => ({
+        ...snapshot,
+        profile: { ...snapshot.profile, diagnosticsEnabled: enabled },
+      })),
 
     setLatencyMs: (latencyMs) =>
       update((snapshot) => ({

@@ -11,6 +11,7 @@ import { openStrings } from '../../music/fretboard'
 import { noteName } from '../../music/notes'
 import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
+import { useDiagnosticsRecorder } from '../hooks/useDiagnosticsRecorder'
 import { Pill, TuningNeedle } from '../components/Indicators'
 
 /** Input selection, tuning, and the latency measurement every timing judgment depends on. */
@@ -157,6 +158,8 @@ const CALIBRATION_COUNT_IN = 4
 function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boolean }) {
   const storedLatency = useProgressStore((store) => store.snapshot.profile.inputLatencyMs)
   const setLatencyMs = useProgressStore((store) => store.setLatencyMs)
+  const diagnosticsEnabled = useProgressStore((store) => store.snapshot.profile.diagnosticsEnabled)
+  const diagnostics = useDiagnosticsRecorder(engine, diagnosticsEnabled)
 
   const [running, setRunning] = useState(false)
   const [taps, setTaps] = useState(0)
@@ -177,8 +180,23 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
     if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
     timeoutRef.current = null
     setRunning(false)
-    setResult(summarizeCalibration(samplesRef.current))
-  }, [])
+    const summary = summarizeCalibration(samplesRef.current)
+    setResult(summary)
+    // The individual taps are what say whether a wide spread is one stray hit
+    // or genuine unsteadiness; the summary alone cannot distinguish them.
+    diagnostics.flush({
+      kind: 'calibration',
+      now: new Date(),
+      calibration: {
+        tapOffsetsMs: samplesRef.current.map((sample) =>
+          Number((sample.offsetSeconds * 1000).toFixed(2)),
+        ),
+        offsetMs: summary.offsetMs,
+        spreadMs: summary.spreadMs,
+        quality: summary.quality,
+      },
+    })
+  }, [diagnostics])
 
   // Leaving the screen mid-measurement used to leave the click track playing
   // and an onset listener running on whatever screen you landed on.
@@ -192,6 +210,7 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
   }, [])
 
   const begin = useCallback(() => {
+    diagnostics.begin()
     samplesRef.current = []
     setTaps(0)
     setResult(null)
@@ -227,7 +246,7 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
       },
       (endsAt - engine.now() + 0.4) * 1000,
     )
-  }, [engine, finish])
+  }, [diagnostics, engine, finish])
 
   return (
     <div className="card">
