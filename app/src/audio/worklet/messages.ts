@@ -30,6 +30,8 @@ export interface OnsetMessage {
   type: 'onset'
   time: number
   level: number
+  /** Amplitude ratio over the reference envelope at the attack. */
+  riseRatio: number
 }
 
 /** Sent once if the processor has to drop samples it cannot buffer. */

@@ -1,4 +1,4 @@
-import type { PerformanceScore, Verdict } from '../engine/judge'
+import type { DetectionDetail, PerformanceScore, Verdict } from '../engine/judge'
 
 /**
  * The boundary between the app and whatever is giving feedback.
@@ -10,7 +10,7 @@ import type { PerformanceScore, Verdict } from '../engine/judge'
  */
 
 /** Bumped whenever the telemetry shape changes. Stored with every record. */
-export const TELEMETRY_SCHEMA_VERSION = 1
+export const TELEMETRY_SCHEMA_VERSION = 2
 
 export interface NoteTelemetry {
   /** Index into the exercise's note list. */
@@ -27,6 +27,12 @@ export interface NoteTelemetry {
   centsOffset: number | null
   /** Attack level, 0..1. */
   level: number | null
+  /**
+   * What the detector was working with. Null when no note was played, so there
+   * was nothing to detect. Present so a take on a real instrument can be read
+   * back against constants that were tuned on synthesised plucks.
+   */
+  detection: DetectionDetail | null
   verdict: Verdict
   string: number | null
   fret: number | null

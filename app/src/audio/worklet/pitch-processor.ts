@@ -83,7 +83,12 @@ class PitchProcessor extends AudioWorkletProcessor {
 
   /** Bound once: a fresh closure per render quantum is an allocation (AU1). */
   private readonly emitOnset = (onset: DetectedOnset): void => {
-    this.port.postMessage({ type: 'onset', time: onset.time, level: onset.level })
+    this.port.postMessage({
+      type: 'onset',
+      time: onset.time,
+      level: onset.level,
+      riseRatio: onset.riseRatio,
+    })
   }
 
   private handleCommand(command: WorkletCommand | undefined): void {

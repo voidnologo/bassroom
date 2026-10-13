@@ -77,13 +77,19 @@ function whatWasAsked(
 /** A missing played note means the target was never sounded. */
 function whatWasPlayed(
   played: NoteJudgment['played'],
-): Pick<NoteTelemetry, 'playedMidi' | 'centsOffset' | 'level'> {
+): Pick<NoteTelemetry, 'playedMidi' | 'centsOffset' | 'level' | 'detection'> {
   if (!played || played.midi === null)
-    return { playedMidi: null, centsOffset: null, level: played?.level ?? null }
+    return {
+      playedMidi: null,
+      centsOffset: null,
+      level: played?.level ?? null,
+      detection: played?.detection ?? null,
+    }
   return {
     playedMidi: played.midi,
     centsOffset: centsOffsetOf(played.midi, played.cents),
     level: played.level,
+    detection: played.detection ?? null,
   }
 }
 

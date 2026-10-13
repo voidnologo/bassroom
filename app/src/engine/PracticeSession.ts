@@ -225,6 +225,12 @@ export class PracticeSession {
         midi: resolution.midi,
         cents: resolution.cents,
         level: onset.level,
+        detection: {
+          riseRatio: onset.riseRatio,
+          agreement: resolution.agreement,
+          frameCount: resolution.frameCount,
+          clarity: resolution.clarity,
+        },
       }
       this.played.push(played)
       this.callbacks.onNote?.(played, null)

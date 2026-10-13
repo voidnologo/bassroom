@@ -238,7 +238,11 @@ export class AudioEngine implements AudioEngineApi {
 
   private handleWorkletMessage(message: WorkletMessage): void {
     if (message.type === 'onset') {
-      const event: OnsetEvent = { time: message.time, level: message.level }
+      const event: OnsetEvent = {
+        time: message.time,
+        level: message.level,
+        riseRatio: message.riseRatio,
+      }
       this.onsetListeners.forEach((listener) => listener(event))
       return
     }

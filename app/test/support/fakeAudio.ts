@@ -57,9 +57,9 @@ export class FakeAudioInput implements AudioInput {
     for (const listener of [...this.pitchListeners]) listener(complete)
   }
 
-  emitOnset(time: number, level = 0.5): void {
+  emitOnset(time: number, level = 0.5, riseRatio = 3): void {
     this.currentTime = Math.max(this.currentTime, time)
-    for (const listener of [...this.onsetListeners]) listener({ time, level })
+    for (const listener of [...this.onsetListeners]) listener({ time, level, riseRatio })
   }
 
   /**

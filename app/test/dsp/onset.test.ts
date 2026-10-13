@@ -99,3 +99,16 @@ describe('OnsetDetector', () => {
     expect(run(instance, concat(silence(2400), pluck(65.41, 0.5)))).toHaveLength(1)
   })
 })
+
+describe('the rise ratio an onset reports', () => {
+  it('clears the threshold the detector was configured with', () => {
+    const onsets = run(detector(), concat(silence(2400), pluck(65.41, 0.5)))
+    expect(onsets[0].riseRatio).toBeGreaterThanOrEqual(DEFAULT_ONSET_OPTIONS.riseRatio)
+  })
+
+  it('is larger for a hard pluck than a soft one, so the margin is readable', () => {
+    const soft = run(detector(), concat(silence(2400), pluck(65.41, 0.5, 0.15)))
+    const hard = run(detector(), concat(silence(2400), pluck(65.41, 0.5, 0.8)))
+    expect(hard[0].riseRatio).toBeGreaterThan(soft[0].riseRatio)
+  })
+})

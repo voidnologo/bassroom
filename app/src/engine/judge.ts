@@ -11,6 +11,23 @@ export interface PlayedNote {
   cents: number
   /** Peak level of the attack, 0..1. Used to spot uneven plucking. */
   level: number
+  /** Detector measurements kept for tuning against a real instrument. */
+  detection?: DetectionDetail
+}
+
+/**
+ * What the detector was working with when it produced this note. Carried so a
+ * take played on a real bass can be read back against the constants that were
+ * tuned on synthesised plucks.
+ */
+export interface DetectionDetail {
+  /** Amplitude ratio over the reference envelope at the attack. */
+  riseRatio: number
+  /** Fraction of usable frames that agreed on the pitch, 0..1. */
+  agreement: number
+  frameCount: number
+  /** Mean YIN clarity behind the chosen pitch, 0..1. */
+  clarity: number
 }
 
 export interface NoteJudgment {

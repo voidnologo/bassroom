@@ -22,7 +22,16 @@ export interface PitchResolution {
   midi: number | null
   /** Cents from equal temperament of the chosen pitch. */
   cents: number
-  /** Fraction of frames in the window that agreed, 0..1. */
+  /**
+   * Fraction of usable frames that chose the winning pitch, 0..1. Well under 1
+   * means the detector was changing its mind across the window, which is what
+   * a flickering readout looks like in the record.
+   */
+  agreement: number
+  /** Usable frames behind the answer: how many survived the clarity gate. */
+  frameCount: number
+  /** Mean YIN clarity of the frames that agreed, 0..1. */
+  clarity: number
 }
 
 export interface PitchTrackerOptions {
@@ -79,7 +88,8 @@ export class PitchTracker {
         frame.midi !== null &&
         frame.clarity >= minClarity,
     )
-    if (usable.length === 0) return { midi: null, cents: 0 }
+    if (usable.length === 0)
+      return { midi: null, cents: 0, agreement: 0, frameCount: 0, clarity: 0 }
 
     const counts = new Map<number, PitchFrame[]>()
     for (const frame of usable) {
@@ -90,10 +100,14 @@ export class PitchTracker {
 
     const [midi, group] = [...counts.entries()].sort((a, b) => b[1].length - a[1].length)[0]
     const cents = group.reduce((sum, frame) => sum + frame.cents, 0) / group.length
+    const clarity = group.reduce((sum, frame) => sum + frame.clarity, 0) / group.length
 
     return {
       midi,
       cents: Number(cents.toFixed(1)),
+      agreement: group.length / usable.length,
+      frameCount: usable.length,
+      clarity: Number(clarity.toFixed(3)),
     }
   }
 

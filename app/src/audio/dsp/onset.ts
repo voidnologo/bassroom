@@ -50,6 +50,13 @@ export interface DetectedOnset {
   time: number
   /** Fast-envelope amplitude at the attack, 0..1. */
   level: number
+  /**
+   * How far the fast envelope exceeded the reference, in amplitude, at the
+   * moment this fired. Directly comparable to the `riseRatio` option: a value
+   * barely above it is an attack that nearly went unheard, which is what says
+   * whether the threshold is in the right place on a real instrument.
+   */
+  riseRatio: number
 }
 
 export class OnsetDetector {
@@ -96,7 +103,7 @@ export class OnsetDetector {
       this.advanceEnvelopes(block[i] * block[i], settling)
       if (settling || !this.isAttack()) continue
       this.lastOnsetTime = time
-      onOnset({ time, level: Math.sqrt(this.fastEnergy) })
+      onOnset({ time, level: Math.sqrt(this.fastEnergy), riseRatio: this.measuredRiseRatio() })
     }
   }
 
@@ -122,6 +129,15 @@ export class OnsetDetector {
     const coefficient =
       this.fastEnergy > this.referenceEnergy ? this.riseCoefficient : this.fallCoefficient
     this.referenceEnergy = this.fastEnergy + coefficient * (this.referenceEnergy - this.fastEnergy)
+  }
+
+  /**
+   * Infinity when the reference envelope is silent, which is a real attack out
+   * of nothing rather than a division to hide.
+   */
+  private measuredRiseRatio(): number {
+    if (this.referenceEnergy <= 0) return Infinity
+    return Math.sqrt(this.fastEnergy / this.referenceEnergy)
   }
 
   private isAttack(): boolean {

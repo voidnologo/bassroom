@@ -28,6 +28,11 @@ export interface PitchFrame {
 export interface OnsetEvent {
   time: number
   level: number
+  /**
+   * How far the attack exceeded the detector's reference envelope, in
+   * amplitude. Comparable to the `riseRatio` the detector was configured with.
+   */
+  riseRatio: number
 }
 
 export interface BeatEvent {
