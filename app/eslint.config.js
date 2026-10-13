@@ -26,6 +26,10 @@ export default typescript.config(
     settings: { react: { version: 'detect' } },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // recommended ships these as warnings, and `eslint .` exits 0 on a
+      // warning, so a rule left at that level is documentation rather than a gate.
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'error',
       'react/jsx-uses-react': 'off',
       'react/react-in-jsx-scope': 'off',
 
@@ -42,7 +46,7 @@ export default typescript.config(
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       eqeqeq: ['error', 'always'],
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      'no-console': ['error', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
     },
   },
@@ -76,8 +80,16 @@ export default typescript.config(
 
   {
     // Tooling talks to a person at a terminal, which is what console is for.
+    // The complexity budgets still apply: complexity.md's paths name server/.
     files: ['server/**/*.mjs', 'scripts/**', '*.config.{js,ts}'],
     languageOptions: { globals: { ...globals.node } },
-    rules: { 'no-console': 'off', '@typescript-eslint/no-explicit-any': 'off' },
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      complexity: ['error', 10],
+      'max-depth': ['error', 3],
+      'max-params': ['error', 4],
+      'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
+    },
   },
 )

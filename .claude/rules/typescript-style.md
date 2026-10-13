@@ -1,5 +1,5 @@
 ---
-paths: ["app/src/**/*.ts", "app/src/**/*.tsx", "app/test/**/*.ts"]
+paths: ["app/src/**/*.ts", "app/src/**/*.tsx", "app/test/**/*.ts", "app/test/**/*.tsx", "app/server/**/*.mjs"]
 ---
 
 # TypeScript style
