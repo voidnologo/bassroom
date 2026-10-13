@@ -104,12 +104,31 @@ export function scanDspWebAudio(files) {
   return found
 }
 
+// Named explicitly rather than matched as `.createSomething(`, which also
+// catches document.createElement and every other unrelated factory.
+const AUDIO_NODE_FACTORIES = [
+  'createGain',
+  'createOscillator',
+  'createBiquadFilter',
+  'createAnalyser',
+  'createMediaStreamSource',
+  'createScriptProcessor',
+  'createDynamicsCompressor',
+  'createBufferSource',
+  'createDelay',
+  'createConvolver',
+  'createStereoPanner',
+  'createWaveShaper',
+].join('|')
+
+const UI_AUDIO_PATTERN = new RegExp(`new (?:AudioContext|AudioWorkletNode)|\\.(?:${AUDIO_NODE_FACTORIES})\\(`)
+
 /** RC4: components ask the audio layer for a context; they never build one. */
 export function scanUiAudio(files) {
   const found = []
   for (const file of files.filter((f) => under(f, 'src/ui/'))) {
     for (const { line, number } of codeLines(file)) {
-      if (!/new (?:AudioContext|AudioWorkletNode)|\.create[A-Z]\w*\(/.test(line)) continue
+      if (!UI_AUDIO_PATTERN.test(line)) continue
       found.push(
         finding('ui-audio', FIX, 'RC4', file, number,
           'components must not create audio nodes; request them from src/audio/'),

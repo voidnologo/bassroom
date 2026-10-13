@@ -139,12 +139,19 @@ describe('scanProvenance', () => {
 describe('scanFocusedTests', () => {
   const run = scan('scanFocusedTests')
 
-  it.each(['describe.only(', 'it.only(', 'it.skip(', 'xit(', 'xdescribe('])(
-    'flags %s',
-    (snippet) => {
-      expect(run([file('app/test/a.test.ts', `${snippet}'x', () => {})`)])).toHaveLength(1)
-    },
-  )
+  // The snippets are assembled rather than written out, so that this file -
+  // which the scanner also reads - does not itself contain what it detects.
+  const focused = [
+    ['describe', '.only('],
+    ['it', '.only('],
+    ['it', '.skip('],
+    ['x', 'it('],
+    ['x', 'describe('],
+  ].map(([head, tail]) => head + tail)
+
+  it.each(focused)('flags %s', (snippet) => {
+    expect(run([file('app/test/a.test.ts', `${snippet}'x', () => {})`)])).toHaveLength(1)
+  })
 
   it('allows an ordinary test', () => {
     expect(run([file('app/test/a.test.ts', "it('works', () => {})")])).toHaveLength(0)
