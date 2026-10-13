@@ -53,6 +53,7 @@ npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/wor
 
 - `/quality-check` before opening a PR, and before saying a change is done.
 - `/session-start` and `/session-end` around a working session; the log lives in `docs/sessions/`.
+- For a session with the bass plugged in, `docs/sessions/tuning-prompt.md` drives it step by step.
 
 ## Where new code goes
 
