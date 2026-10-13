@@ -9,12 +9,13 @@ Feedback is the part of this app most likely to get better over time without the
 ```ts
 interface CoachProvider {
   readonly id: string;
+  readonly label: string;
   isAvailable(): Promise<boolean>;
   analyze(request: CoachRequest): Promise<CoachFeedback>;
 }
 ```
 
-A provider receives a take's telemetry, the exercise, the per-note judgments, and the telemetry of recent takes of the same exercise. It returns structured feedback: a headline, at most three observations each with the measurement behind it, and exactly one next action.
+A provider receives a take's telemetry and the telemetry of recent takes of the same exercise. It returns structured feedback: a headline, at most three observations each with the measurement behind it, and exactly one next action. `label` is what the Settings screen shows for whichever provider answered.
 
 Callers never know which provider answered. That is the point — swapping in something better is the whole reason the layer exists, and a caller that branches on the provider defeats it.
 
@@ -26,7 +27,7 @@ It is also the fallback. Anything at all going wrong with a model call falls thr
 
 **`LanguageModelCoach`** posts to the local coach server, which calls the Anthropic API. The prompt lives in `src/coach/prompts/takeReview.ts` with a version string, so a change to the coach's behaviour is a reviewable diff rather than an edit buried in a fetch.
 
-Everything the model returns is validated into the shape the UI renders. A response with an unknown severity, a missing headline or an action kind nobody defined is rejected and the rules answer instead. A model that returns something unexpected must degrade, not render wrong.
+Everything the model returns is validated into the shape the UI renders. A missing headline or an action kind nobody defined rejects the whole response and the rules answer instead. A single observation with an unknown severity is dropped and the rest of the response is kept, because one bad line is not a reason to throw away four good ones. A model that returns something unexpected must degrade, not render wrong.
 
 ## Telemetry records measurements, not readings of them
 

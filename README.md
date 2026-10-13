@@ -51,7 +51,7 @@ Ten lessons in four units, from "which string is which" to the complete hymn. Ma
 
 | Unit          | Lessons                                                            |
 | ------------- | ------------------------------------------------------------------ |
-| Foundations   | Setup and instrument check · The plucking hand · The fretting hand |
+| Foundations   | Get set up · The plucking hand · The fretting hand                 |
 | Fundamentals  | Finding notes · Playing in time · Shapes that move                 |
 | Playing music | Ode to Joy, Twinkle, Happy Birthday                                |
 | The songs     | Angel · This Is the Christ, roots · This Is the Christ, full line  |

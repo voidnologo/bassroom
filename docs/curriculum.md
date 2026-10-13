@@ -10,13 +10,13 @@ So the path is built to make each of those harder. Every take is measured, so yo
 
 **One new demand at a time.** The plucking hand before the fretting hand. Pitch before rhythm. Rhythm before both at once. Each unit adds exactly one thing that was not there before.
 
-**Song material as early as it is playable.** Angel's riff is two notes, so it arrives in Unit 2, immediately after the rhythm lesson that makes it possible — long before the melodies, which are musically simpler but technically harder. The hymn's roots arrive as soon as the shapes lesson has covered the positions they use.
+**Song material as early as it is playable.** Angel's riff is two notes, so it unlocks immediately after the rhythm lesson that makes it possible — long before the melodies, which are musically simpler but technically harder, and which wait on the shapes lesson. It is listed under The songs, but its only prerequisite is rhythm. The hymn's roots arrive as soon as the shapes lesson has covered the positions they use.
 
 ## The units
 
 ### Foundations
 
-**Setup and instrument check.** Before anything else, the instrument is checked. Three of the most common reasons a beginner decides they have no aptitude are a buzzing fret, an action too high to press, and a bass that is out of tune — all three feel exactly like failing, and none of them is. Then the input, then latency calibration, which is what makes every later timing judgment honest.
+**Get set up.** Before anything else, the instrument is checked. Three of the most common reasons a beginner decides they have no aptitude are a buzzing fret, an action too high to press, and a bass that is out of tune — all three feel exactly like failing, and none of them is. Then the input, then latency calibration, which is what makes every later timing judgment honest.
 
 **The plucking hand.** Finding each string by feel, and making a consistent sound. Alternating index and middle from the first session, because using one finger for everything feels easier now and caps your speed permanently.
 
@@ -44,9 +44,9 @@ So the path is built to make each of those harder. Every take is measured, so yo
 
 The default daily goal is fifteen minutes. That is deliberate: in the clearest study on the question — postal workers learning to type, total hours held constant — one hour once a day beat two hours twice a day by a wide margin, and the most effective schedule was the one trainees rated least satisfying. Short and daily wins, and it does not feel like it is winning.
 
-A ten-minute day is a real day. It is what keeps the habit alive on a bad week, and the streak is built to treat it as such.
+A short day is a real day: the streak counts any completed take, however brief. That is what keeps the habit alive on a bad week.
 
-The app orders each day as reviews first, then whatever is already underway, then one new thing. Reviews come first because a skill sliding backward costs more than a new one gained, and because you should not have to decide this each day.
+The app orders each day as reviews first by urgency, then whatever is already underway, then new material to fill out a short plan. Reviews come first because a skill sliding backward costs more than a new one gained, and because you should not have to decide this each day.
 
 ## What progress means here
 
@@ -58,7 +58,7 @@ The second number is how often your guess about your own timing matched the meas
 
 ## The exercises
 
-Twenty-two, across ten lessons. Song exercises are generated from the song charts rather than written out, so correcting a transcription corrects every drill built on it in the same edit.
+Spread across ten lessons, in `drills.ts`, `melodies.ts`, and generated from the song charts by `songExercises.ts` — so correcting a transcription corrects every drill built on it in the same edit.
 
 Every exercise declares the skills it trains, and the review scheduler works on those tags, so nothing drops out of rotation once it has been learned.
 

@@ -71,7 +71,7 @@ The evidence here is mixed in quality and is reported as such. Where a finding i
 
 ### Considered and not adopted, or adopted in a weaker form
 
-**Interleaved practice from day one.** The closest study to this population — adult woodwind novices — is a null result, and applied-setting effect estimates run from slightly positive to slightly negative, none significant. The better-supported option is an _increasing_ schedule, blocked then serial then random. The daily plan currently orders reviews by urgency and then adds one new item, which is nearer the serial end than the blocked one. **This is the largest gap between what the evidence suggests and what is built**, and it is written down here rather than quietly skipped.
+**Interleaved practice from day one.** The closest study to this population — adult woodwind novices — is a null result, and applied-setting effect estimates run from slightly positive to slightly negative, none significant. The better-supported option is an _increasing_ schedule, blocked then serial then random. The daily plan currently orders reviews by urgency and then fills the remainder with new material, which is nearer the serial end than the blocked one. **This is the largest gap between what the evidence suggests and what is built**, and it is written down here rather than quietly skipped.
 
 **Fading feedback on a schedule.** The evidence reverses on complex whole-body tasks, where 100% feedback beat a 50% fade at retention. A true beginner on bass is closer to that case, so feedback is not faded by calendar. Per-item fading by mastery remains the right eventual design.
 

@@ -19,7 +19,7 @@ Run these from `app/`.
 
 ```
 npm run dev            # worklet build + Vite + coach server
-npm run verify         # format:check, lint, typecheck, test — the gate
+npm run verify         # format:check, lint, typecheck, test, tab freshness — the gate
 npm run test           # vitest
 npm run test:coverage  # vitest with the 70% threshold enforced
 npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/worklet/
