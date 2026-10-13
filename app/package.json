@@ -18,10 +18,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:coverage": "vitest run --coverage",
-    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run tabs:check",
     "build:worklet": "vite build --config vite.worklet.config.ts",
     "predev:web": "npm run build:worklet",
-    "prebuild": "npm run build:worklet"
+    "prebuild": "npm run build:worklet",
+    "tabs": "vite-node scripts/generate-tabs.ts",
+    "tabs:check": "vite-node scripts/generate-tabs.ts -- --check"
   },
   "dependencies": {
     "idb-keyval": "^6.2.1",
