@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.local
+.env
+.env.*
+!.env.example
+
+# Practice telemetry written by the coach server. Personal data, and it would
+# churn every session.
+data/sessions/
+data/*.jsonl
