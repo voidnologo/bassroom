@@ -1,29 +1,25 @@
 # Handoff
 
-**Last updated:** 2026-10-13
-**Last session:** design, architecture and standards review, and the fixes it justified
+**Last updated:** 2026-10-14
+**Last session:** design/architecture review, then UI work on tab, navigation and play-along
 
 ## Where it is
 
-The app runs end to end. `cd app && npm run dev` serves it at :5173 with the coach server on :8787, telemetry writes to `data/sessions/*.jsonl`, and `npm run verify` is green. The README now shows the app; the screenshots in `docs/screenshots/` are the running app against live input.
+The app runs end to end. `cd app && npm run dev` serves it at :5173 with the coach server on :8787. 1265 tests pass, coverage ~89%, `npm run verify` and `npm run build` are green, and the static gates report nothing.
 
-Still not played by a human with a bass. Every number in this project comes from synthesised signals.
+**Still not played by a human with a bass.** Every detector constant in `src/audio/dsp/` comes from synthesised plucks. `docs/sessions/tuning-prompt.md` drives that session; it is paused after Step 1, logged in `docs/sessions/logs/tuning-2026-10-13.md`.
 
-## What the October review changed
+## What the last two sessions changed
 
-**A take the detector heard nothing in was credited as practice.** Sitting through a take in silence scored 0/100 with every note missed, then earned XP, a level, a streak day and the "First note" badge. `abandoned` already existed to stop exactly this, but only covered stopping early, not never starting. Such a take is now recorded in the history and excluded from XP, the streak, the ladder, the review schedule, and the self-estimate score.
+**Review and cleanup.** A take the detector heard nothing in was being credited with XP, a level, a streak day and a badge; it is now recorded and then excluded from everything that reads as progress. `YinDetector` gained the `reset()` AU3 requires and the rule gained a test that enumerates the DSP classes. The contract types moved into `audio/contracts.ts` so `engine/` no longer names an audio implementation, and the layering test now forbids what CLAUDE.md says. Warning-level lint rules became errors with `--max-warnings 0`, and the complexity budgets now reach the server. A large amount of computed-and-never-read surface was deleted.
 
-**`YinDetector` had no `reset()`**, which AU3 requires of every DSP class, and the worklet reset every member except it. Nothing broke — both its buffers are scratch — but nothing enumerated the DSP classes either, so a class with no reset was invisible to the tests that claimed to enforce the rule. `test/dsp/resetContract.test.ts` now fails when the class list and the directory disagree.
+**Diagnostics.** Each note carries what the detector was working with — the rise ratio the attack cleared, the frame agreement, the frame count and the mean clarity. Behind a Settings toggle, the raw frames, onsets and calibration taps are written to `data/sessions/diagnostics-<date>.jsonl`.
 
-**`src/engine/` imported from `src/audio/`**, which `CLAUDE.md` forbids, while the enforcing test permitted it. `PitchFrame`, `OnsetEvent` and `BeatEvent` moved into `audio/contracts.ts` — which had been importing them back from the two implementations it stands in front of — and the layering test now forbids what the table says.
+**The tab.** The on-screen chart was rebuilt to be played from: measures flush in systems, bar lines as the only strong verticals, the time signature printed at the start and at each change, a counting row, and a line showing how long each note is held. The fixed-width rendering stays behind a "Printable" toggle. A **Reading tab** lesson was added, and Angel is the song the Songs screen opens on.
 
-**Warning-level lint rules were doing nothing.** `eslint .` exits 0 on a warning, so `no-console` (TY9) and the react-hooks rules were documentation. Both are errors now, with `--max-warnings 0` behind them. The complexity budgets claimed `app/server/**` but matched only `.ts`/`.tsx`, so none applied to the server; they do now.
+**Navigation and play-along.** Navigation keeps a trail, so returning from practising a song lands on the song that was open. The note being played is orange in both the chart and the highway, and the two are tested to agree on where a note is. The chart sits flush under the highway and is withheld during a retention check, because it is a cue.
 
-**The tempo slider was reset by finishing a take**, because tempo and the retention-check toggle were store values mirrored into component state and re-synced by an effect. Both read through `useOverride` now: the learner's choice wins until the exercise changes.
-
-**"Loop that bar" ran the whole exercise.** The advice was good; the button was the part that lied. The coach only renders a button for actions the app can carry out.
-
-**Deleted**: result fields computed every take and read by nobody (`bestClearedBpm`, `LadderOutcome.change`, `PitchResolution.agreement`/`.frameCount`, `AttemptResult.streakOutcome`, `storageStatus`), unreachable accessors on `Metronome` and `AudioEngine`, `CoachService.refresh`/`useModelWhenAvailable`, `locate`, the `free-play` practice mode that had no branch to implement it, `GET /api/takes`, the `NoteNames` fretboard layer, and `CoachRequest.exercise`/`.judgments`.
+**The lint hook had never run.** It invoked ESLint from the repo root, where there is no config, and failed on every file Claude edited.
 
 ## Known deferred
 
@@ -31,9 +27,9 @@ Still not played by a human with a bass. Every number in this project comes from
 
 **A decision, not a defect: how much new material a day.** The Dashboard's own heading says "then one new thing"; the code fills to six. The docs now describe the code. Which one is right is a product call nobody has made — on a fresh install it is the difference between one exercise and four on the first screen.
 
-**The coach server trusts the browser for its prompt.** `handleReview` forwards whatever `system` string it is sent, using the server's API key. `promptVersion` is sent and then ignored, so nothing ties a stored take to the prompt that produced its feedback, and the model's answer is never written to the JSONL at all. Keep the prompt server-side keyed by version, reject unknown versions, and store the feedback beside the take.
+**`/api/takes` stores whatever it is handed.** `/api/diagnostics` validates its body and names the field that is wrong; the takes route still checks only that the body is an object with a `schemaVersion`. These files are the training material for every future coach.
 
-**The server stores whatever it is handed.** `handleRecordTake` checks that the body is an object with an integer `schemaVersion`, then appends it verbatim. Nothing checks `takeId`, `recordedAt`, `score`, or that `notes` is an array. These files are the training material for every future coach. Roughly twenty lines of hand-written validation; the zero-dependency constraint is not what is costing anything here, the validation simply has not been written.
+**The coach server trusts the browser for its prompt.** `handleReview` forwards whatever `system` string it is sent, using the server's API key. `promptVersion` is sent and then ignored, so nothing ties a stored take to the prompt that produced its feedback, and the model's answer is never written to the JSONL at all. Keep the prompt server-side keyed by version, reject unknown versions, and store the feedback beside the take.
 
 **Section exercises lose their bar offset.** A chorus-only exercise renumbers from bar 1, so when the coach says "loop bar 3" the printed chart in `tabs/` says bar 15. `SongExerciseSpec` knows the section; the offset just is not carried.
 
@@ -48,6 +44,7 @@ Still not played by a human with a bass. Every number in this project comes from
 **Smaller, each worth a line:**
 
 - `AudioEngine.setOptions` is gone, so `enterClarity`/`exitClarity` are the constructor defaults. To change them for a real instrument, edit the literal in `AudioEngine`'s constructor.
+- `PLAYHEAD` in `NoteHighway.tsx` repeats `--playhead` from the stylesheet, because a canvas cannot read a custom property. The two have to move together.
 - The click track keeps playing through the 400 ms judging window, and `Metronome.muted` (never set, now removed) was the handle that fix would have used.
 - `telemetry.exercise.noteCount` is the unexpanded count and contradicts `notes.length` whenever `repeats > 1`.
 - `PlayedNote.level` carries two different quantities: an onset envelope in play-along, a decimated frame RMS in call-and-response.
@@ -58,9 +55,9 @@ Still not played by a human with a bass. Every number in this project comes from
 - `authoring.ts` rejects frets above 24; `FRET_COUNT` is 20.
 - Heading order skips from `h1` to `h3` on the dashboard, practice and settings screens.
 - The fretboard marks right and wrong by colour alone (RC7). `VerdictStrip` and `NoteHighway` both solve this already; the fretboard is the one element the learner watches while playing.
+- `BARS_PER_SYSTEM` is fixed at four. On a narrow screen the sheet scrolls rather than reflowing.
 - `AudioProvider` holds the coach as well as the engine, so a coach error re-renders every screen including a running take.
 - `Fretboard.firstFret` is threaded through the layout and is always 0. Unpicking it changes fretboard geometry, which wants checking against a real screen.
-- `Practice.tsx` casts `setScreen(next as ScreenId)` because `ScreenId` is not exported and every screen types navigation as `(screen: string) => void`. The screen ids `today` and `tuner` do not match the files `Dashboard.tsx` and `Setup.tsx`.
 
 ## About the rules
 

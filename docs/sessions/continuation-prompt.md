@@ -6,27 +6,53 @@ Paste the block below into a fresh Claude Code session started in `~/personal/ba
 
 I'm picking up work on Bassroom, a bass-guitar practice app at `~/personal/bass` (public repo: github.com/voidnologo/bassroom). Everything is committed and pushed; the working tree is clean.
 
-**Read these first, in this order:** `CLAUDE.md` (a router to the project's rules, no rules of its own), `.claude/rules/` (91 numbered rules, each with an ID, a one-clause reason and an enforcement venue), `README.md`, then `docs/sessions/HANDOFF.md` — which has a "Known deferred" section listing what a previous review found and chose not to fix yet.
+**Read these first, in this order:** `CLAUDE.md` (a router to the project's rules, no rules of its own), `.claude/rules/`, `README.md`, then `docs/sessions/HANDOFF.md`.
 
-**Where it stands.** The app is built end to end: audio capture and YIN pitch detection in an AudioWorklet, onset detection, a practice session state machine, judging, a tempo ladder, spaced repetition, gamification, a pluggable coach layer with a local server, ten lessons of content, and six screens. 1,132 tests pass, coverage is 88%, `npm run verify` is green, and the static gates (`node .claude/skills/quality-check/scripts/gates.mjs --all`) report nothing.
+**Where it stands.** 1265 tests pass, coverage is ~89%, `npm run verify` is green, `npm run build` is green, and `node .claude/skills/quality-check/scripts/gates.mjs --all` reports nothing. CI runs more than `verify` does: coverage thresholds, the build, and the gates.
 
-A previous session ran three parallel deep reviews — audio/real-time, React/UI, domain/data — and fixed the large majority of what they found, including a product-breaking one where a beginner's first perfect take scored zero stars and was logged as a spaced-repetition failure, so the lesson path would never have unlocked.
+The last session did a design/architecture/standards review and then a long run of UI work. In short: deleted a lot of surface nothing read, made several rule-enforcement claims actually true, replaced the on-screen tab with something playable, and wired a play-along playhead through both the highway and the chart. `git log --oneline 435134b..HEAD` is the list.
 
-**What I want from this session, before I plug a bass in:**
+**Still true, and the thing that matters most:** nobody has played a real bass into this. Every detector constant in `src/audio/dsp/` was tuned against synthesised plucks.
 
-1. **One more design, architecture and standards review.** Not a repeat of the last one — assume the obvious correctness bugs are gone. I want you to look at it as a _system_: whether the layering still earns its keep, whether the abstractions are the right ones or just the ones that got built, whether anything is over-engineered for what it does, whether the rules in `.claude/rules/` actually describe the code and are enforced where they claim to be, and whether a person picking this up cold could find their way. Say plainly if something should be deleted or simplified rather than kept.
+## What I want from this session
 
-2. Then **fix what the review justifies fixing**, in incremental commits with `npm run verify` green at each one. Follow the project's own rules while doing it — in particular, do not raise a complexity budget to make code pass (CX5), and do not add features beyond what the review justifies (ST5).
+Pick up wherever I point you. If I don't say, ask — don't guess from the list below.
 
-3. Then tell me **exactly what to do to try it for the first time**, and what to watch for.
+## The tuning session is paused mid-way
 
-**Things to know before you start:**
+`docs/sessions/tuning-prompt.md` drives a session with the bass plugged in, one step at a time. It is written to be read by you, and it carries the constants, what each one does, and the protocol.
 
-- Nobody has played a real bass into this yet. Every number comes from synthesised signals. `docs/sessions/HANDOFF.md` lists the four things to check first with an instrument and which constant to turn when each one is wrong. Treat the onset detector's constants as the most likely to need adjusting.
-- `app/public/pitch-processor.js` is generated from `src/audio/worklet/` and is untracked; `npm run dev` and `npm run build` build it via npm `pre*` hooks.
-- The tab files in `tabs/` are generated from the song charts by `npm run tabs`, and `npm run verify` fails if they have drifted.
-- `docs/audio-pipeline.md` records why the detector is shaped the way it is, including one commonly recommended fix that was implemented, measured, and removed because it made things worse. Do not re-add it without new evidence.
-- `docs/research-notes.md` records what a research pass found, what was adopted, and what was considered and rejected with the reason.
-- My hardware is a Focusrite Scarlett Solo, on macOS here and Omarchy Linux at home.
+`docs/sessions/logs/tuning-2026-10-13.md` has a "Paused — how to resume" block. We got through Step 1 and stopped before Step 2. No takes were recorded and no constant has moved.
 
-Use subagents for the review fan-out rather than reading everything into the main conversation.
+Diagnostics now exist and are off by default: Settings → Detector diagnostics writes every pitch frame (time, frequency, clarity, rms, midi, cents), every onset (time, level, riseRatio) and the calibration taps to `data/sessions/diagnostics-<date>.jsonl`, beside the takes in `takes-<date>.jsonl`. Both are gitignored, so findings have to be written into the session log to survive.
+
+## Known open, roughly in order
+
+- **Practice scheduling.** `buildDailyPlan` orders reviews by urgency then fills the remainder of a six-item plan. The better-supported design is an increasing schedule — blocked, then serial, then random — gated on error rate rather than the calendar. `docs/research-notes.md` says so. Largest gap between the evidence and what is built.
+- **A decision nobody has made:** the Dashboard heading says "then one new thing"; the code fills to six.
+- **The coach server trusts the browser for its prompt.** `handleReview` forwards whatever `system` string it is sent using the server's key; `promptVersion` is ignored; the model's answer is never stored. `/api/takes` also stores whatever it is handed — `/api/diagnostics` validates and names the bad field, and `/api/takes` should do the same.
+- **The take lifecycle runs in two directions.** `PracticeSession` publishes `onBeat`/`onPitch`/`onNote` that nothing subscribes to, while `usePracticeTake` reaches back through `getTimeKeeper()` and sideways to `engine.onPitch`. Pick one.
+- **`useTakeCompletion` is a React hook with nothing React in it** — telemetry, the POST, `recordAttempt` and the coach call all live in `usePracticeTake`.
+- Section exercises lose their bar offset; JSONL appends are not serialised; `recentTakes` is session-scoped. The rest of the smaller items are listed in the handoff.
+
+## Rules worth knowing before you change anything
+
+- Do not raise a complexity budget to make code pass (CX5) — extract a function. This fired four times last session and was right every time.
+- Do not add features beyond what was asked (ST5).
+- When code and a rule disagree, say so and ask (ST7). Several rules were corrected last session because the rule was wrong; each one says which way it moved and why.
+- A bug fix starts with a test that fails for the bug's reason (TS6), and a test that cannot fail is worse than none (TS1/TS2). Several tests last session passed vacuously on first writing — against a screen that was not mounted, against a locked row, against a default that had not changed. Mutation-check anything that matters by breaking the fix and watching it go red.
+
+## Things that will waste your time if you don't know them
+
+- `app/public/pitch-processor.js` is generated from `src/audio/worklet/` and is untracked. Changing anything in `src/audio/dsp/` or `src/audio/worklet/` needs `npm run build:worklet` **and a hard reload** — Vite does not hot-reload that bundle and the URL has no cache-buster. A change that appears to do nothing is almost always this.
+- The tab files in `tabs/` are generated from the song charts; `npm run verify` fails if they have drifted. Run `npm run tabs`.
+- `docs/audio-pipeline.md` records a commonly recommended detector fix that was implemented, measured and removed. Do not re-add it without new evidence.
+- The hymn's notes come from the publisher's MusicXML. Changing a pitch means changing the `provenance` too.
+- The shell has `noclobber`: overwrite with `>|`, not `>`.
+- Driving the app from the browser is useful, but a React-controlled checkbox toggled with raw `.click()` reports a `.checked` the component does not agree with. Prefer a test for anything subtle.
+
+## My setup
+
+Focusrite Scarlett Solo. macOS here, Omarchy Linux at home — on Linux the interface has to be visible to PipeWire before Chrome offers it at all.
+
+Use subagents for any review fan-out rather than reading everything into the main conversation.
