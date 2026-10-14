@@ -25,6 +25,9 @@
   --good: #46d39a;
   --warn: #f2c14e;
   --bad: #f2695c;
+  /* The playhead. Deliberately outside the blue the rest of the app is built
+     from, so the note being played now is found without reading anything. */
+  --playhead: #ff9542;
   --fretboard: #2a1f18;
   --string: #9aa6b5;
 
@@ -874,6 +877,34 @@ button.list-item:hover {
   margin-right: 4px;
   border-radius: 2px;
   background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* ---- Playhead -----------------------------------------------------------
+   Written straight to the DOM by useTabPlayhead at frame rate. */
+
+.tabmeasure-note[data-state='played'] .tabmeasure-fret {
+  background: var(--accent-dim);
+  color: var(--text-muted);
+}
+
+.tabmeasure-note[data-state='played'] .tabmeasure-ring {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.tabmeasure-note[data-state='playing'] .tabmeasure-fret {
+  background: var(--playhead);
+  color: #2a1403;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--playhead) 28%, transparent);
+}
+
+/* Fills left to right as the note is held, so how far through the beat you
+   are is readable without watching the count. */
+.tabmeasure-note[data-state='playing'] .tabmeasure-ring {
+  background: linear-gradient(
+    to right,
+    var(--playhead) 0 calc(var(--played, 0) * 100%),
+    color-mix(in srgb, var(--playhead) 20%, transparent) calc(var(--played, 0) * 100%) 100%
+  );
 }
 
 .tabmeasure-counts {

@@ -152,13 +152,20 @@ export function barsFromNotes(
   meterChanges: readonly MeterChange[] = [],
 ): SongBar[] {
   const byIndex = new Map<number, SongBar>()
+  let lastBar = 0
 
   for (const note of notes) {
     const { bar, beatInBar } = barPositionAt(note.startBeat, timeSignature, meterChanges)
     const existing = byIndex.get(bar) ?? { index: bar, timeSignature, notes: [] }
     existing.notes.push({ ...note, startBeat: beatInBar - 1 })
     byIndex.set(bar, existing)
+    lastBar = Math.max(lastBar, bar)
   }
 
-  return [...byIndex.values()].sort((a, b) => a.index - b.index)
+  // Every bar up to the last, not only the ones holding a note. A bar of rest
+  // is part of the music, and leaving it out shifts everything after it.
+  return Array.from({ length: lastBar }, (_, index) => {
+    const bar = index + 1
+    return byIndex.get(bar) ?? { index: bar, timeSignature, notes: [] }
+  })
 }

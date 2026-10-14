@@ -101,7 +101,13 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
         onAct={(feedback) => handleCoachAction(feedback.nextAction)}
       />
 
-      <ReadFromTab exercise={exercise} />
+      <FollowTheChart
+        exercise={exercise}
+        targets={targets}
+        beatRef={beatRef}
+        running={running}
+        showCues={!isProbe || !running}
+      />
       <Tips tips={exercise.tips} />
     </div>
   )
@@ -360,17 +366,50 @@ function Result({
 }
 
 /**
- * Shown for the exercises whose point is reading the notation, where the
- * moving cues would otherwise do the reading for the learner.
+ * The chart, with the note being played now marked on it.
+ *
+ * The highway shows what is coming; this shows where you are in the music as
+ * written, which is what a player follows when reading rather than reacting.
  */
-function ReadFromTab({ exercise }: { exercise: Exercise }): JSX.Element | null {
-  if (!exercise.skills.includes('reading-tab')) return null
-  const bars = barsFromNotes(exercise.notes, exercise.timeSignature, exercise.meterChanges)
+function FollowTheChart({
+  exercise,
+  targets,
+  beatRef,
+  running,
+  showCues,
+}: {
+  exercise: Exercise
+  /** Expanded, so a repeated exercise charts every pass the take plays. */
+  targets: TargetNote[]
+  beatRef: React.MutableRefObject<number>
+  running: boolean
+  showCues: boolean
+}): JSX.Element | null {
+  const bars = barsFromNotes(targets, exercise.timeSignature, exercise.meterChanges)
+  if (bars.length === 0) return null
+
+  // The chart is a cue like any other. A retention check measures what is
+  // played without help, and leaving the music on screen is help.
+  if (!showCues) {
+    return (
+      <div className="card">
+        <h3>The chart</h3>
+        <p className="small muted">
+          Hidden for the retention check. It comes back when the take ends.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="card">
       <h3>The chart</h3>
-      <p className="small muted">This is what you are playing. Read it rather than the highway.</p>
-      <TabChart bars={bars} timeSignature={exercise.timeSignature} />
+      <TabChart
+        bars={bars}
+        timeSignature={exercise.timeSignature}
+        beatRef={beatRef}
+        running={running}
+      />
     </div>
   )
 }

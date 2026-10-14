@@ -32,3 +32,11 @@ describe('barsFromNotes', () => {
     expect(barsFromNotes([], FOUR_FOUR)).toEqual([])
   })
 })
+
+describe('bars that hold no notes', () => {
+  it('keeps a bar of rest, rather than shifting the music after it', () => {
+    const bars = barsFromNotes([note('E0', 0, 1), note('A0', 8, 1)], FOUR_FOUR)
+    expect(bars.map((bar) => bar.index)).toEqual([1, 2, 3])
+    expect(bars[1].notes).toEqual([])
+  })
+})

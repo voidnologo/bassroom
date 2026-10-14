@@ -1,5 +1,7 @@
+import { useRef } from 'react'
 import { STRING_LABELS, preferredPosition } from '../../music/fretboard'
 import type { SongBar, TargetNote, TimeSignature } from '../../music/types'
+import { useTabPlayhead } from '../hooks/useTabPlayhead'
 
 /**
  * Tab laid out to be played from.
@@ -25,10 +27,18 @@ const BARS_PER_SYSTEM = 4
 export function TabChart({
   bars,
   timeSignature,
+  beatRef,
+  running = false,
 }: {
   bars: SongBar[]
   timeSignature: TimeSignature
+  /** Body beat of the take in progress. Drives the playhead when running. */
+  beatRef?: React.MutableRefObject<number>
+  running?: boolean
 }): JSX.Element {
+  const sheetRef = useRef<HTMLDivElement>(null)
+  useTabPlayhead(sheetRef, beatRef, running)
+
   const signatures = new Map<number, TimeSignature>()
   let inForce: TimeSignature | null = null
   for (const bar of bars) {
@@ -39,8 +49,17 @@ export function TabChart({
     inForce = signature
   }
 
+  // Where each bar begins, counted from the start of the body, so a note can
+  // carry the absolute beat the clock reports rather than its place in a bar.
+  const barStarts = new Map<number, number>()
+  let elapsed = 0
+  for (const bar of bars) {
+    barStarts.set(bar.index, elapsed)
+    elapsed += (bar.timeSignature ?? timeSignature)[0]
+  }
+
   return (
-    <div className="tabsheet">
+    <div className="tabsheet" ref={sheetRef}>
       {chunk(bars, BARS_PER_SYSTEM).map((system) => (
         <div className="tabsystem" key={system[0].index}>
           <StringNames />
@@ -51,6 +70,7 @@ export function TabChart({
                 bar={bar}
                 signature={bar.timeSignature ?? timeSignature}
                 showSignature={signatures.get(bar.index)}
+                barStartBeat={barStarts.get(bar.index) ?? 0}
               />
             ))}
           </div>
@@ -83,10 +103,12 @@ function Measure({
   bar,
   signature,
   showSignature,
+  barStartBeat,
 }: {
   bar: SongBar
   signature: TimeSignature
   showSignature?: TimeSignature
+  barStartBeat: number
 }): JSX.Element {
   const beats = signature[0]
 
@@ -119,7 +141,12 @@ function Measure({
         )}
         <span className="tabmeasure-notes">
           {bar.notes.map((note, index) => (
-            <Fret key={`${note.startBeat}-${index}`} note={note} beats={beats} />
+            <Fret
+              key={`${note.startBeat}-${index}`}
+              note={note}
+              beats={beats}
+              barStartBeat={barStartBeat}
+            />
           ))}
         </span>
       </div>
@@ -142,7 +169,15 @@ function Measure({
  * long as the note is held -- which is what says whether a bar holds one note
  * or four, the question a grid of bare numbers leaves open.
  */
-function Fret({ note, beats }: { note: TargetNote; beats: number }): JSX.Element | null {
+function Fret({
+  note,
+  beats,
+  barStartBeat,
+}: {
+  note: TargetNote
+  beats: number
+  barStartBeat: number
+}): JSX.Element | null {
   const position = note.position ?? preferredPosition(note.midi)
   if (!position) return null
   const row = ROWS.indexOf(STRING_LABELS[position.string])
@@ -151,6 +186,8 @@ function Fret({ note, beats }: { note: TargetNote; beats: number }): JSX.Element
   return (
     <span
       className="tabmeasure-note"
+      data-start-beat={barStartBeat + note.startBeat}
+      data-end-beat={barStartBeat + note.startBeat + note.durationBeats}
       style={{
         left: `${(note.startBeat / beats) * 100}%`,
         width: `${(held / beats) * 100}%`,
