@@ -827,10 +827,13 @@ button.list-item:hover {
   font-weight: 700;
   color: var(--text);
   z-index: 2;
-  /* Sits over the staff, so the lines are masked out behind the digits
-     rather than striking through them. */
-  padding: 0 3px;
-  background: var(--bg-raised);
+  /* Drawn over the staff lines, as printed music does. A solid mask behind it
+     has to know the colour it is sitting on, and this chart is shown on two
+     different ones. */
+  padding: 0 2px;
+  text-shadow:
+    0 0 3px var(--bg),
+    0 0 2px var(--bg);
 }
 
 /* Held clear of the time signature where one is printed, so the first note of
@@ -918,4 +921,17 @@ button.list-item:hover {
 .tabmeasure-counts span {
   flex: 1;
   padding-left: 4px;
+}
+
+/* The chart sits directly beneath the highway and reads as part of it, so it
+   takes no card of its own and only enough top rule to separate the two. */
+.chart-under-highway {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.chart-hidden {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  margin: 0;
 }

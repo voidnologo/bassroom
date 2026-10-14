@@ -101,13 +101,6 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
         onAct={(feedback) => handleCoachAction(feedback.nextAction)}
       />
 
-      <FollowTheChart
-        exercise={exercise}
-        targets={targets}
-        beatRef={beatRef}
-        running={running}
-        showCues={!isProbe || !running}
-      />
       <Tips tips={exercise.tips} />
     </div>
   )
@@ -173,18 +166,29 @@ function Stage(props: StageProps) {
 
       <Fretboard {...fretboardPropsFor({ prompt, position, showCues, take, targets })} />
 
-      {exercise.mode !== 'call-response' && (
-        // Kept mounted during a retention check and fed an empty note list, so
-        // the block does not vanish and shift everything below it mid count-in.
-        <NoteHighway
-          notes={showCues ? targets : []}
+      {/* Flush against the highway rather than below the fold: the two are one
+          display, and a glance down to the chart should not cross the page. */}
+      <div className="stack" style={{ gap: 0 }}>
+        {exercise.mode !== 'call-response' && (
+          // Kept mounted during a retention check and fed an empty note list, so
+          // the block does not vanish and shift everything below it mid count-in.
+          <NoteHighway
+            notes={showCues ? targets : []}
+            beatRef={beatRef}
+            verdictsRef={verdictsRef}
+            beatsPerBar={exercise.timeSignature[0]}
+            meterChanges={exercise.meterChanges}
+            running={running}
+          />
+        )}
+        <FollowTheChart
+          exercise={exercise}
+          targets={targets}
           beatRef={beatRef}
-          verdictsRef={verdictsRef}
-          beatsPerBar={exercise.timeSignature[0]}
-          meterChanges={exercise.meterChanges}
           running={running}
+          showCues={showCues}
         />
-      )}
+      </div>
 
       <TransportBar {...props} running={running} />
     </div>
@@ -368,8 +372,9 @@ function Result({
 /**
  * The chart, with the note being played now marked on it.
  *
- * The highway shows what is coming; this shows where you are in the music as
- * written, which is what a player follows when reading rather than reacting.
+ * Sits directly under the highway, close enough to read without looking away
+ * from it. The highway shows what is coming; this shows where you are in the
+ * music as written, which is what a reader follows.
  */
 function FollowTheChart({
   exercise,
@@ -392,18 +397,14 @@ function FollowTheChart({
   // played without help, and leaving the music on screen is help.
   if (!showCues) {
     return (
-      <div className="card">
-        <h3>The chart</h3>
-        <p className="small muted">
-          Hidden for the retention check. It comes back when the take ends.
-        </p>
-      </div>
+      <p className="small muted chart-hidden">
+        Chart hidden for the retention check. It comes back when the take ends.
+      </p>
     )
   }
 
   return (
-    <div className="card">
-      <h3>The chart</h3>
+    <div className="chart-under-highway" aria-label="The chart">
       <TabChart
         bars={bars}
         timeSignature={exercise.timeSignature}

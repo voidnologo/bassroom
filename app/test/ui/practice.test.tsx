@@ -268,42 +268,30 @@ describe('a call-and-response exercise', () => {
 describe('the chart on the practice screen', () => {
   it('shows the chart it is asking the learner to read', async () => {
     await openPractice('tab-open-strings', true)
-    await waitFor(
-      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
-      WAIT,
-    )
+    await waitFor(() => expect(screen.getByLabelText('The chart')).toBeInTheDocument(), WAIT)
     expect(document.querySelectorAll('[data-bar]')).toHaveLength(4)
   })
 
   it('draws a fret number for every note the exercise asks for', async () => {
     await openPractice('tab-read-angel', true)
-    await waitFor(
-      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
-      WAIT,
-    )
+    await waitFor(() => expect(screen.getByLabelText('The chart')).toBeInTheDocument(), WAIT)
     const exercise = exerciseById('tab-read-angel')!
     expect(document.querySelectorAll('[data-fret]')).toHaveLength(exercise.notes.length)
   })
 
   it('is there for an ordinary exercise too, so any take can be followed on it', async () => {
     await openPractice('open-strings-quarter')
-    await waitFor(
-      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
-      WAIT,
-    )
+    await waitFor(() => expect(screen.getByLabelText('The chart')).toBeInTheDocument(), WAIT)
     expect(document.querySelectorAll('[data-start-beat]').length).toBeGreaterThan(0)
   })
 
   it('hides the chart during a retention check, because the chart is a cue', async () => {
     const { user } = await openPractice('open-strings-quarter')
-    await waitFor(
-      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
-      WAIT,
-    )
+    await waitFor(() => expect(screen.getByLabelText('The chart')).toBeInTheDocument(), WAIT)
     await user.click(screen.getByRole('checkbox', { name: /retention check/i }))
     await user.click(screen.getByRole('button', { name: /start take/i }))
     await waitFor(
-      () => expect(screen.getByText(/hidden for the retention check/i)).toBeInTheDocument(),
+      () => expect(screen.getByText(/chart hidden for the retention check/i)).toBeInTheDocument(),
       WAIT,
     )
     expect(document.querySelectorAll('[data-start-beat]')).toHaveLength(0)
@@ -311,10 +299,7 @@ describe('the chart on the practice screen', () => {
 
   it('gives every note an absolute beat for the playhead to find it by', async () => {
     await openPractice('open-strings-quarter')
-    await waitFor(
-      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
-      WAIT,
-    )
+    await waitFor(() => expect(screen.getByLabelText('The chart')).toBeInTheDocument(), WAIT)
     const beats = [...document.querySelectorAll<HTMLElement>('[data-start-beat]')].map((el) =>
       Number(el.dataset.startBeat),
     )
