@@ -87,12 +87,19 @@ export class AudioEngine implements AudioEngineApi {
 
   async listInputDevices(): Promise<InputDeviceInfo[]> {
     const devices = await navigator.mediaDevices.enumerateDevices()
-    return devices
-      .filter((device) => device.kind === 'audioinput')
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: device.label || `Input ${index + 1}`,
-      }))
+    return (
+      devices
+        .filter((device) => device.kind === 'audioinput')
+        // An entry with no id is the placeholder a browser returns before any
+        // permission is granted. It names no hardware and duplicates the
+        // caller's own "default" option, so offering it is a choice between two
+        // identical things.
+        .filter((device) => device.deviceId !== '')
+        .map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `Input ${index + 1}`,
+        }))
+    )
   }
 
   /**

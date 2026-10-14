@@ -12,7 +12,8 @@ import { noteName } from '../../music/notes'
 import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
 import { useDiagnosticsRecorder } from '../hooks/useDiagnosticsRecorder'
-import { Pill, TuningNeedle } from '../components/Indicators'
+import { Pill } from '../components/Indicators'
+import { TuningBar } from '../components/TuningBar'
 
 /** Input selection, tuning, and the latency measurement every timing judgment depends on. */
 export function Setup() {
@@ -22,8 +23,26 @@ export function Setup() {
   const setPreferredDevice = useProgressStore((store) => store.setPreferredDevice)
   const [selected, setSelected] = useState(profile.preferredDeviceId ?? '')
 
+  /**
+   * A device is only bound when the stream opens, so choosing one while
+   * listening has to reopen it. Without this the select appears to work and
+   * the previous input keeps feeding every measurement.
+   */
+  const chooseDevice = async (deviceId: string): Promise<void> => {
+    setSelected(deviceId)
+    setPreferredDevice(deviceId || null)
+    if (state !== 'running') return
+    await stop()
+    await start(deviceId || undefined)
+  }
+
+  // Enumerated on mount, not only once the engine runs. Browsers withhold
+  // device labels until a microphone permission has been granted at least
+  // once, so on a first visit this finds nothing useful -- but on every visit
+  // after that it fills the list before the first start, which is what stops a
+  // session being recorded from the system default by accident.
   useEffect(() => {
-    if (state === 'running') void refreshDevices()
+    void refreshDevices()
   }, [state, refreshDevices])
 
   return (
@@ -48,7 +67,7 @@ export function Setup() {
           <select
             aria-label="Audio input device"
             value={selected}
-            onChange={(event) => setSelected(event.target.value)}
+            onChange={(event) => void chooseDevice(event.target.value)}
             style={{ minWidth: 280 }}
           >
             <option value="">Default input</option>
@@ -77,6 +96,12 @@ export function Setup() {
           )}
           <Pill tone={state === 'running' ? 'good' : 'plain'}>{state}</Pill>
         </div>
+        {devices.length === 0 && state !== 'running' && (
+          <p className="small muted" style={{ marginTop: 12 }}>
+            Your inputs appear here once the browser has been allowed to use a microphone. Start
+            listening once, then choose the interface from this list.
+          </p>
+        )}
         <p className="small muted" style={{ marginTop: 12 }}>
           Monitor yourself through the interface&apos;s own direct monitoring rather than through
           the browser. It is lower latency, and it keeps speaker output from reaching the input.
@@ -126,11 +151,8 @@ function Tuner() {
           <div className="row-between">
             <span className="stat-value">{noteName(reading.midi)}</span>
             <span className="mono">{formatCents(reading.cents)}</span>
-            <Pill tone={Math.abs(reading.cents) < 5 ? 'good' : 'warn'}>
-              {Math.abs(reading.cents) < 5 ? 'in tune' : reading.cents > 0 ? 'sharp' : 'flat'}
-            </Pill>
           </div>
-          <TuningNeedle cents={reading.cents} />
+          <TuningBar cents={reading.cents} />
           <p className="small muted">
             {nearest && reading.midi === nearest.midi
               ? `That is your ${nearest.label} string.`
