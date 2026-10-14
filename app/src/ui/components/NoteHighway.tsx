@@ -34,6 +34,13 @@ const NOW_LINE_FRACTION = 0.22
 const NOTE_HEIGHT = 22
 
 /**
+ * The playhead, matching `--playhead` in the stylesheet. A canvas cannot read
+ * a custom property, so the value is repeated here and the two have to move
+ * together.
+ */
+const PLAYHEAD = '#ff9542'
+
+/**
  * A canvas font is parsed as a standalone CSS shorthand with no element to
  * resolve against, so `var(--mono)` is silently discarded and the context keeps
  * its 10px default. The stack is written out for that reason.
@@ -242,31 +249,84 @@ function drawNotes(
   notes.forEach((note, index) => {
     const offset = note.startBeat - beat
     if (offset < -2 || offset > beatsAhead + 1) return
-
-    const verdict = verdicts.get(index)
-    const x = geometry.nowX + offset * geometry.pixelsPerBeat
-    const noteWidth = Math.max(16, note.durationBeats * geometry.pixelsPerBeat - 3)
-    const lane = note.position ? note.position.string : 0
-    const y =
-      geometry.yOf(lane) - NOTE_HEIGHT / 2 + (verdict ? (VERDICT_LANE_OFFSET[verdict] ?? 0) : 0)
-
-    context.fillStyle = verdict ? VERDICT_COLOURS[verdict] : '#2f6f93'
-    traceRoundedRect(context, { x, y, width: noteWidth, height: NOTE_HEIGHT })
-    context.fill()
-
-    // A note arriving at the now-line gets an outline, so the moment to play it
-    // is marked by shape as well as by position.
-    if (Math.abs(offset) < 0.12) {
-      context.strokeStyle = '#e7edf5'
-      context.lineWidth = 2
-      context.stroke()
-    }
-
-    context.fillStyle = verdict ? '#0a0d12' : '#eaf4fb'
-    const label = note.position ? String(note.position.fret) : pitchClassName(note.midi)
-    context.fillText(label, x + noteWidth / 2, y + NOTE_HEIGHT - 7)
+    drawNote(context, geometry, { note, offset, beat, verdict: verdicts.get(index) })
   })
   context.textAlign = 'left'
+}
+
+interface NoteSpec {
+  note: TargetNote
+  /** Beats until the note reaches the now-line; negative once it has passed. */
+  offset: number
+  beat: number
+  verdict: Verdict | undefined
+}
+
+function drawNote(context: CanvasRenderingContext2D, geometry: Geometry, spec: NoteSpec): void {
+  const { note, offset, beat, verdict } = spec
+  const x = geometry.nowX + offset * geometry.pixelsPerBeat
+  const width = Math.max(16, note.durationBeats * geometry.pixelsPerBeat - 3)
+  const lane = note.position ? note.position.string : 0
+  const y = geometry.yOf(lane) - NOTE_HEIGHT / 2 + laneOffsetFor(verdict)
+  const rect = { x, y, width, height: NOTE_HEIGHT }
+
+  context.fillStyle = verdict ? VERDICT_COLOURS[verdict] : '#2f6f93'
+  traceRoundedRect(context, rect)
+  context.fill()
+
+  const playing = isUnderTheLine(note, beat, verdict)
+  if (playing) fillPassed(context, rect, geometry.nowX)
+
+  // A note arriving at the now-line gets an outline, so the moment to play it
+  // is marked by shape as well as by position.
+  if (Math.abs(offset) < 0.12) {
+    context.strokeStyle = '#e7edf5'
+    context.lineWidth = 2
+    context.stroke()
+  }
+
+  context.fillStyle = verdict || playing ? '#0a0d12' : '#eaf4fb'
+  const label = note.position ? String(note.position.fret) : pitchClassName(note.midi)
+  context.fillText(label, x + width / 2, y + NOTE_HEIGHT - 7)
+}
+
+function laneOffsetFor(verdict: Verdict | undefined): number {
+  return verdict ? (VERDICT_LANE_OFFSET[verdict] ?? 0) : 0
+}
+
+/** A note is under the line from its start until its written length is up. */
+export function isUnderTheLine(
+  note: TargetNote,
+  beat: number,
+  verdict: Verdict | undefined,
+): boolean {
+  if (verdict) return false
+  return beat >= note.startBeat && beat < note.startBeat + note.durationBeats
+}
+
+/** How much of a note lies left of the now-line, and so has been played. */
+export function passedWidth(x: number, width: number, nowX: number): number {
+  return Math.max(0, Math.min(nowX, x + width) - x)
+}
+
+/**
+ * Fills the part of a note that has already gone past the now-line. The
+ * boundary is the line itself, so this shows where the note actually is rather
+ * than being an animation timed to look like it.
+ */
+function fillPassed(
+  context: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  nowX: number,
+): void {
+  const passed = passedWidth(rect.x, rect.width, nowX)
+  if (passed <= 0) return
+  context.save()
+  traceRoundedRect(context, rect)
+  context.clip()
+  context.fillStyle = PLAYHEAD
+  context.fillRect(rect.x, rect.y, passed, rect.height)
+  context.restore()
 }
 
 function drawNowLine(
