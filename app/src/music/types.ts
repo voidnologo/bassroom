@@ -11,6 +11,7 @@ export type SkillId =
   | 'note-names-e'
   | 'note-names-a'
   | 'note-names-d-g'
+  | 'reading-tab'
   | 'quarter-notes'
   | 'eighth-notes'
   | 'sixteenth-notes'

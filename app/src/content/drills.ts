@@ -163,6 +163,55 @@ export const DRILLS: Exercise[] = [
     targetBpm: 60,
   }),
 
+  // --- Reading tab ---------------------------------------------------------
+  // The chart is shown and the moving cues are not, because reading is the
+  // skill being trained: a highway that shows what is coming does the reading
+  // for you.
+  exercise({
+    id: 'tab-open-strings',
+    title: 'Read the open strings',
+    instructions:
+      'Four zeros, one per bar, lowest line to highest. A zero means the open string for that line.',
+    skills: ['reading-tab', 'plucking-open'],
+    notes: [note('E0', 0, 4), note('A0', 4, 4), note('D0', 8, 4), note('G0', 12, 4)],
+    targetBpm: 60,
+    floorBpm: 40,
+    tips: [
+      'The bottom line is the thickest string, the one nearest your chin when you are playing. Tab is drawn upside down compared to how you look at the neck.',
+      'Say the string name out loud before you pluck it. Naming it is what makes the line mean something.',
+    ],
+  }),
+
+  exercise({
+    id: 'tab-first-frets',
+    title: 'Read a fretted line',
+    instructions:
+      'Numbers on the lowest two lines. The number is the fret, not the finger and not the note name.',
+    skills: ['reading-tab', 'note-names-e', 'fretting-basics'],
+    notes: [...steady(['E0', 'E3', 'E5', 'E3']), ...steady(['A0', 'A3', 'A5', 'A3'], 4)],
+    targetBpm: 60,
+    floorBpm: 40,
+    tips: [
+      'A 3 on the bottom line and a 3 on the line above are different notes. The line tells you which string, the number tells you where on it.',
+      'Nothing in tab tells you which finger to use. That is a decision you make, and the dots on the neck are what you make it from.',
+    ],
+  }),
+
+  exercise({
+    id: 'tab-read-angel',
+    title: 'Read a bar of Angel',
+    instructions:
+      'The same bar you can see on the Songs page. Read it from the chart rather than from memory.',
+    skills: ['reading-tab', 'eighth-notes', 'repertoire'],
+    notes: steady(['A3', 'A3', 'A3', 'A3', 'A3', 'A3', 'A3', 'A3'], 0, 0.5),
+    targetBpm: 80,
+    floorBpm: 44,
+    tips: [
+      'Eight notes across four beats: two to a beat. The spacing on the chart is what tells you that, which is the part a tab can show and a list of note names cannot.',
+      'This is the first bar of Angel. Once you can read it you can read the whole song, because the song is this bar and one more note.',
+    ],
+  }),
+
   // --- Unit 4: rhythm ------------------------------------------------------
   exercise({
     id: 'quarter-and-rest',

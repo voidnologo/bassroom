@@ -12,6 +12,9 @@ import { exerciseById } from '../../src/content/curriculum'
 import { expandRepeats } from '../../src/engine/PracticeSession'
 import type { Exercise } from '../../src/music/types'
 import { FakeAudioEngine } from '../support/fakeEngine'
+import { ALL_EXERCISES } from '../../src/content/curriculum'
+import { createExerciseProgress } from '../../src/progress/reducer'
+import type { ProgressSnapshot } from '../../src/progress/types'
 
 /**
  * A whole take, from pressing start to the coach answering.
@@ -33,9 +36,20 @@ beforeEach(async () => {
   })
 })
 
-async function openPractice(exerciseId = 'open-strings-quarter') {
+/** Every exercise starred, so a lesson behind a prerequisite can be opened. */
+function withEverythingUnlocked(): ProgressSnapshot {
+  const now = new Date()
+  const snapshot = createSnapshot(now)
+  for (const exercise of ALL_EXERCISES) {
+    snapshot.exercises[exercise.id] = { ...createExerciseProgress(exercise, now), bestStars: 1 }
+  }
+  return snapshot
+}
+
+async function openPractice(exerciseId = 'open-strings-quarter', unlockAll = false) {
   const engine = new FakeAudioEngine('running')
   const user = userEvent.setup()
+  if (unlockAll) useProgressStore.setState({ snapshot: withEverythingUnlocked() })
   render(<App engine={engine} />)
   await waitFor(() => expect(useProgressStore.getState().loaded).toBe(true))
 
@@ -248,5 +262,35 @@ describe('a call-and-response exercise', () => {
       WAIT,
     )
     expect(screen.queryByText(/how was your timing/i)).toBeNull()
+  })
+})
+
+describe('an exercise whose point is reading the notation', () => {
+  it('shows the chart it is asking the learner to read', async () => {
+    await openPractice('tab-open-strings', true)
+    await waitFor(
+      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(document.querySelectorAll('.tabbar')).toHaveLength(4)
+  })
+
+  it('draws a fret number for every note the exercise asks for', async () => {
+    await openPractice('tab-read-angel', true)
+    await waitFor(
+      () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
+      WAIT,
+    )
+    const exercise = exerciseById('tab-read-angel')!
+    expect(document.querySelectorAll('.tabbar-fret')).toHaveLength(exercise.notes.length)
+  })
+
+  it('is left off an exercise that is not about reading', async () => {
+    await openPractice('open-strings-quarter')
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /start take/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(screen.queryByRole('heading', { name: 'The chart' })).toBeNull()
   })
 })

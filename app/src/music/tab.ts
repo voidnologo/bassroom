@@ -1,4 +1,5 @@
 import { STRING_LABELS } from './fretboard'
+import { barPositionAt, type MeterChange } from './meter'
 import type { SongBar, TargetNote, TimeSignature } from './types'
 
 /**
@@ -135,4 +136,29 @@ function chunk<T>(items: T[], size: number): T[][] {
     groups.push(items.slice(index, index + size))
   }
   return groups
+}
+
+/**
+ * Group a flat run of notes into bars, so an exercise can be drawn with the
+ * same renderer a song chart uses.
+ *
+ * An exercise stores beats from the start of the body; a chart stores bars
+ * holding beats from the start of the bar. This is the conversion between
+ * them, and it lives here because both sides of it are notation.
+ */
+export function barsFromNotes(
+  notes: readonly TargetNote[],
+  timeSignature: TimeSignature,
+  meterChanges: readonly MeterChange[] = [],
+): SongBar[] {
+  const byIndex = new Map<number, SongBar>()
+
+  for (const note of notes) {
+    const { bar, beatInBar } = barPositionAt(note.startBeat, timeSignature, meterChanges)
+    const existing = byIndex.get(bar) ?? { index: bar, timeSignature, notes: [] }
+    existing.notes.push({ ...note, startBeat: beatInBar - 1 })
+    byIndex.set(bar, existing)
+  }
+
+  return [...byIndex.values()].sort((a, b) => a.index - b.index)
 }

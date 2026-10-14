@@ -17,6 +17,8 @@ import { BeatDots, Meter, Pill, Stars, VerdictStrip } from '../components/Indica
 import { NoteHighway } from '../components/NoteHighway'
 import { EstimateOutcome, SelfEstimatePrompt } from '../components/SelfEstimate'
 import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
+import { TabChart } from '../components/TabChart'
+import { barsFromNotes } from '../../music/tab'
 import { useOverride } from '../hooks/useOverride'
 import { isDue } from '../../progress/srs'
 import type { Navigate } from '../navigation'
@@ -99,6 +101,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
         onAct={(feedback) => handleCoachAction(feedback.nextAction)}
       />
 
+      <ReadFromTab exercise={exercise} />
       <Tips tips={exercise.tips} />
     </div>
   )
@@ -352,6 +355,22 @@ function Result({
         {attempt.ladder.message}
       </p>
       <Meter fraction={score.overall / 100} good={score.overall >= 90} />
+    </div>
+  )
+}
+
+/**
+ * Shown for the exercises whose point is reading the notation, where the
+ * moving cues would otherwise do the reading for the learner.
+ */
+function ReadFromTab({ exercise }: { exercise: Exercise }): JSX.Element | null {
+  if (!exercise.skills.includes('reading-tab')) return null
+  const bars = barsFromNotes(exercise.notes, exercise.timeSignature, exercise.meterChanges)
+  return (
+    <div className="card">
+      <h3>The chart</h3>
+      <p className="small muted">This is what you are playing. Read it rather than the highway.</p>
+      <TabChart bars={bars} timeSignature={exercise.timeSignature} />
     </div>
   )
 }

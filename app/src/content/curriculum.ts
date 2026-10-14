@@ -84,6 +84,22 @@ export const LESSONS: Lesson[] = [
     estimatedMinutes: 15,
   },
   {
+    id: 'reading-tab',
+    title: 'Reading tab',
+    summary: 'Read the notation both of your songs are written in.',
+    briefing: [
+      'Four lines, one per string. The bottom line is the thickest string, the low E. Tab is drawn the opposite way up from the way you look at the neck, which trips up almost everyone once and then never again.',
+      'A number on a line is a fret on that string. 0 means play it open. The number is never a finger and never a note name: 3 on the bottom line is G, and 3 on the line above it is C.',
+      'Left to right is time. Notes further apart are further apart in time, and notes stacked in the same place are played together. Bar lines divide the music into bars, and the number under each one is the bar number the app and the coach will refer to.',
+      'The chord symbol above a bar is what the rest of the band is playing. It is context rather than instruction -- you still play only the numbers.',
+      'What tab does not tell you is how long a note lasts. A tab on its own is ambiguous about rhythm, which is why you learn the rhythm by ear or from the count and use the tab for the pitches. This app shows you the count as well, so you get both.',
+      'You can read the same chart on the Songs page, where every arrangement is drawn from exactly the notes the app plays.',
+    ],
+    exerciseIds: ['tab-open-strings', 'tab-first-frets', 'tab-read-angel'],
+    requires: ['the-neck'],
+    estimatedMinutes: 15,
+  },
+  {
     id: 'rhythm',
     title: 'Playing in time',
     summary: 'Quarter notes, eighth notes, rests, and the subdivision Angel is built on.',
@@ -195,7 +211,7 @@ export const UNITS: Unit[] = [
     id: 'fundamentals',
     title: 'Fundamentals',
     description: 'Where the notes are, how to stay in time, and the shapes that repeat everywhere.',
-    lessonIds: ['the-neck', 'rhythm', 'shapes'],
+    lessonIds: ['the-neck', 'reading-tab', 'rhythm', 'shapes'],
   },
   {
     id: 'music',
