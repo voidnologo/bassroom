@@ -142,7 +142,7 @@ describe('songs', () => {
   it('draws the chart for the song it opens on', async () => {
     const user = await openApp()
     await user.click(screen.getByRole('button', { name: 'Songs' }))
-    expect(document.querySelectorAll('.tabbar').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('[data-bar]').length).toBeGreaterThan(0)
   })
 
   it('keeps the fixed-width tab available for printing', async () => {
@@ -165,7 +165,7 @@ describe('songs', () => {
     await user.click(screen.getByRole('button', { name: 'Songs' }))
     await user.click(screen.getByRole('button', { name: 'Angel' }))
     await user.click(screen.getByRole('button', { name: 'Full riff' }))
-    expect(document.querySelectorAll('.tabbar').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('[data-bar]').length).toBeGreaterThan(0)
   })
 
   it('states where the notes came from', async () => {

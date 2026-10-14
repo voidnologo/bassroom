@@ -704,119 +704,187 @@ button.list-item:hover {
   color: var(--text);
 }
 
-/* ---- Tab, laid out for a screen -----------------------------------------
-   Each bar is its own block and wraps when it runs out of room, rather than
-   holding one fixed-width grid together across the whole piece. */
+/* ---- Tab, laid out to be played from ------------------------------------
+   Measures sit flush so a system reads as a line of music. Bar lines are the
+   only strong verticals: anything else drawn between them gets mistaken for
+   one, which is what the first attempt at this got wrong. */
 
-.tabchart {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 14px;
-  align-items: start;
-}
-
-.tabbar {
-  --row-height: 24px;
-  margin: 0;
-  padding: 10px 12px 14px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.tabbar-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.tabbar-number {
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  color: var(--text-faint);
-}
-
-.tabbar-chord {
-  font-weight: 650;
-  color: var(--accent);
-}
-
-.tabbar-grid {
-  display: flex;
-  gap: 8px;
-}
-
-.tabbar-names {
+.tabsheet {
+  --row-height: 22px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.tabsystem {
+  display: flex;
+  align-items: flex-start;
+  min-width: 520px;
+}
+
+/* One line of music to the next. Without it the systems run together and the
+   chord row of the next reads as part of the counts row of the last. */
+.tabsystem + .tabsystem {
+  /* Deliberately not a staff grey: it divides lines of music rather than
+     being part of one, and at the same colour it read as another bar line. */
+  border-top: 2px solid var(--accent-dim);
+  padding-top: 18px;
+}
+
+.tabnames {
+  display: flex;
+  flex-direction: column;
+  /* Clears the chord and bar-number row above the staff. */
+  margin-top: 22px;
+  padding-right: 6px;
   font-family: var(--mono);
   font-size: 0.7rem;
   color: var(--text-faint);
 }
 
-.tabbar-names span {
+.tabnames span {
   height: var(--row-height);
   display: flex;
   align-items: center;
 }
 
-/* The only positioned area, so a note's percentage is a share of the strings
-   and not of the row labels beside them. The side margins hold a number that
-   lands on the first or last beat, which would otherwise hang over the edge. */
-.tabbar-lanes {
-  position: relative;
+.tabstaff {
+  display: flex;
   flex: 1;
-  margin: 0 13px;
+  border-right: 2px solid var(--border-strong);
+}
+
+.tabmeasure {
+  min-width: 0;
+  border-left: 2px solid var(--border-strong);
+}
+
+.tabmeasure-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  height: 22px;
+  padding: 0 6px;
+}
+
+.tabmeasure-number {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.tabmeasure-chord {
+  font-weight: 650;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.tabmeasure-staff {
+  position: relative;
   height: calc(4 * var(--row-height));
 }
 
-.tabbar-line {
+.tabmeasure-line {
   position: absolute;
-  left: -13px;
-  right: -13px;
+  left: 0;
+  right: 0;
   height: 1px;
   background: var(--border-strong);
 }
 
-.tabbar-line:nth-of-type(1) {
+.tabmeasure-line:nth-of-type(1) {
   top: calc(0.5 * var(--row-height));
 }
-.tabbar-line:nth-of-type(2) {
+.tabmeasure-line:nth-of-type(2) {
   top: calc(1.5 * var(--row-height));
 }
-.tabbar-line:nth-of-type(3) {
+.tabmeasure-line:nth-of-type(3) {
   top: calc(2.5 * var(--row-height));
 }
-.tabbar-line:nth-of-type(4) {
+.tabmeasure-line:nth-of-type(4) {
   top: calc(3.5 * var(--row-height));
 }
 
-/* Beat divisions, so a note's place in the bar is readable without counting
-   dashes. */
-.tabbar-beat {
+/* Printed at the start and wherever the meter changes, as notation does.
+   Without it a 3/4 bar and a 4/4 bar differ only by how wide they happen to
+   be, which is not something anyone should have to measure. */
+.tabmeasure-meter {
   position: absolute;
-  top: calc(0.3 * var(--row-height));
-  height: calc(3.4 * var(--row-height));
-  width: 1px;
-  background: color-mix(in srgb, var(--border-strong) 55%, transparent);
+  left: 5px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  line-height: 1.05;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  z-index: 2;
+  /* Sits over the staff, so the lines are masked out behind the digits
+     rather than striking through them. */
+  padding: 0 3px;
+  background: var(--bg-raised);
 }
 
-.tabbar-fret {
+/* Held clear of the time signature where one is printed, so the first note of
+   a meter change is not drawn underneath it. */
+.tabmeasure-notes {
   position: absolute;
-  transform: translate(-50%, 0);
-  min-width: 21px;
-  height: 21px;
-  padding: 0 4px;
+  left: var(--note-inset, 0);
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+.tabmeasure-note {
+  position: absolute;
+  height: var(--row-height);
+  display: flex;
+  align-items: center;
+  padding-left: 3px;
+}
+
+.tabmeasure-fret {
+  flex: 0 0 auto;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 3px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 5px;
   background: var(--accent);
   color: #06131c;
   font-family: var(--mono);
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 650;
-  box-shadow: 0 0 0 3px var(--bg-sunken);
+  z-index: 1;
+}
+
+/* Runs for as long as the note is held, so a bar holding one note looks
+   different from a bar holding four. */
+.tabmeasure-ring {
+  flex: 1;
+  height: 3px;
+  margin-left: 2px;
+  margin-right: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.tabmeasure-counts {
+  display: flex;
+  height: 18px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text-faint);
+}
+
+.tabmeasure-counts span {
+  flex: 1;
+  padding-left: 4px;
 }

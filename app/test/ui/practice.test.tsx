@@ -272,7 +272,7 @@ describe('an exercise whose point is reading the notation', () => {
       () => expect(screen.getByRole('heading', { name: 'The chart' })).toBeInTheDocument(),
       WAIT,
     )
-    expect(document.querySelectorAll('.tabbar')).toHaveLength(4)
+    expect(document.querySelectorAll('[data-bar]')).toHaveLength(4)
   })
 
   it('draws a fret number for every note the exercise asks for', async () => {
@@ -282,7 +282,7 @@ describe('an exercise whose point is reading the notation', () => {
       WAIT,
     )
     const exercise = exerciseById('tab-read-angel')!
-    expect(document.querySelectorAll('.tabbar-fret')).toHaveLength(exercise.notes.length)
+    expect(document.querySelectorAll('[data-fret]')).toHaveLength(exercise.notes.length)
   })
 
   it('is left off an exercise that is not about reading', async () => {

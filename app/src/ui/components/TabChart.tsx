@@ -1,21 +1,26 @@
 import { STRING_LABELS, preferredPosition } from '../../music/fretboard'
-import type { SongBar, TimeSignature } from '../../music/types'
+import type { SongBar, TargetNote, TimeSignature } from '../../music/types'
 
 /**
- * Tab laid out for a screen rather than for paper.
+ * Tab laid out to be played from.
  *
- * The ASCII rendering in `music/tab.ts` has to hold a fixed-width grid
- * together, so it spends its width on dashes and gets narrower as the music
- * gets busier. Here each bar is its own block that wraps when it runs out of
- * room, the fret numbers are large enough to read at playing distance, and the
- * string a note is on is a row you can follow with your eye.
+ * The fixed-width rendering in `music/tab.ts` is for paper. This is the same
+ * notation drawn so that the things a player needs at a glance are the things
+ * that stand out: where a bar begins, how many beats are in it, and how long
+ * each note is held.
  *
- * It is the same notation, so a learner reading this can read the printable
- * file in `tabs/` -- the lessons teach one thing, not two.
+ * Measures sit flush against each other and wrap, so a row reads as a line of
+ * music rather than as a row of separate boxes.
  */
 
 /** Drawn top to bottom the way tab is always written: thinnest string on top. */
 const ROWS = [...STRING_LABELS].reverse()
+
+/** Beat width, in pixels, at the system's natural size. Enough for a two-digit fret. */
+const BEAT_WIDTH = 44
+
+/** Bars to a line. Four is what fits a laptop without the numbers crowding. */
+const BARS_PER_SYSTEM = 4
 
 export function TabChart({
   bars,
@@ -24,75 +29,138 @@ export function TabChart({
   bars: SongBar[]
   timeSignature: TimeSignature
 }): JSX.Element {
+  const signatures = new Map<number, TimeSignature>()
+  let inForce: TimeSignature | null = null
+  for (const bar of bars) {
+    const signature = bar.timeSignature ?? timeSignature
+    if (inForce === null || signature[0] !== inForce[0] || signature[1] !== inForce[1]) {
+      signatures.set(bar.index, signature)
+    }
+    inForce = signature
+  }
+
   return (
-    <div className="tabchart">
-      {bars.map((bar) => (
-        <TabBar key={bar.index} bar={bar} fallbackSignature={timeSignature} />
+    <div className="tabsheet">
+      {chunk(bars, BARS_PER_SYSTEM).map((system) => (
+        <div className="tabsystem" key={system[0].index}>
+          <StringNames />
+          <div className="tabstaff">
+            {system.map((bar) => (
+              <Measure
+                key={bar.index}
+                bar={bar}
+                signature={bar.timeSignature ?? timeSignature}
+                showSignature={signatures.get(bar.index)}
+              />
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   )
 }
 
-function TabBar({
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    out.push(items.slice(index, index + size))
+  }
+  return out
+}
+
+/** Repeated at the start of every system, the way a clef is. */
+function StringNames(): JSX.Element {
+  return (
+    <div className="tabnames" aria-hidden="true">
+      {ROWS.map((label) => (
+        <span key={label}>{label}</span>
+      ))}
+    </div>
+  )
+}
+
+function Measure({
   bar,
-  fallbackSignature,
+  signature,
+  showSignature,
 }: {
   bar: SongBar
-  fallbackSignature: TimeSignature
+  signature: TimeSignature
+  showSignature?: TimeSignature
 }): JSX.Element {
-  const beatsInBar = (bar.timeSignature ?? fallbackSignature)[0]
-
-  // Eight eighth notes in a column sized for four quarters collide. Width is
-  // bought with note count rather than by shrinking the numbers, which are
-  // already at the smallest size readable from playing distance.
-  const span = bar.notes.length > 6 ? 2 : 1
+  const beats = signature[0]
 
   return (
-    <figure className="tabbar" style={{ gridColumn: `span ${span}` }}>
-      <figcaption className="tabbar-head">
-        <span className="tabbar-number">{bar.index}</span>
-        {bar.chord && <span className="tabbar-chord">{bar.chord}</span>}
-      </figcaption>
-
-      <div className="tabbar-grid">
-        <div className="tabbar-names">
-          {ROWS.map((label) => (
-            <span key={label}>{label}</span>
-          ))}
-        </div>
-
-        <div className="tabbar-lanes">
-          {ROWS.map((label) => (
-            <span key={label} className="tabbar-line" />
-          ))}
-
-          {Array.from({ length: beatsInBar - 1 }, (_, index) => (
-            <span
-              key={index}
-              className="tabbar-beat"
-              style={{ left: `${((index + 1) / beatsInBar) * 100}%` }}
-            />
-          ))}
-
-          {bar.notes.map((note, index) => {
-            const position = note.position ?? preferredPosition(note.midi)
-            if (!position) return null
-            const row = ROWS.indexOf(STRING_LABELS[position.string])
-            return (
-              <span
-                key={`${note.startBeat}-${index}`}
-                className="tabbar-fret"
-                style={{
-                  left: `${(note.startBeat / beatsInBar) * 100}%`,
-                  top: `calc(${row} * var(--row-height))`,
-                }}
-              >
-                {position.fret}
-              </span>
-            )
-          })}
-        </div>
+    <div
+      className="tabmeasure"
+      data-bar={bar.index}
+      style={{ flexGrow: beats, flexBasis: `${beats * BEAT_WIDTH}px` }}
+    >
+      <div className="tabmeasure-head">
+        <span className="tabmeasure-number">{bar.index}</span>
+        {bar.chord && <span className="tabmeasure-chord">{bar.chord}</span>}
       </div>
-    </figure>
+
+      <div
+        className="tabmeasure-staff"
+        style={{ '--note-inset': showSignature ? '30px' : '0px' } as React.CSSProperties}
+      >
+        {ROWS.map((label) => (
+          <span key={label} className="tabmeasure-line" />
+        ))}
+        {showSignature && (
+          <span
+            className="tabmeasure-meter"
+            aria-label={`Time signature: ${showSignature[0]} ${showSignature[1]}`}
+          >
+            <b>{showSignature[0]}</b>
+            <b>{showSignature[1]}</b>
+          </span>
+        )}
+        <span className="tabmeasure-notes">
+          {bar.notes.map((note, index) => (
+            <Fret key={`${note.startBeat}-${index}`} note={note} beats={beats} />
+          ))}
+        </span>
+      </div>
+
+      <div
+        className="tabmeasure-counts"
+        aria-hidden="true"
+        style={{ paddingLeft: showSignature ? 30 : 0 }}
+      >
+        {Array.from({ length: beats }, (_, index) => (
+          <span key={index}>{index + 1}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The number sits where the note starts, and the line beside it runs for as
+ * long as the note is held -- which is what says whether a bar holds one note
+ * or four, the question a grid of bare numbers leaves open.
+ */
+function Fret({ note, beats }: { note: TargetNote; beats: number }): JSX.Element | null {
+  const position = note.position ?? preferredPosition(note.midi)
+  if (!position) return null
+  const row = ROWS.indexOf(STRING_LABELS[position.string])
+  const held = Math.max(0, Math.min(note.durationBeats, beats - note.startBeat))
+
+  return (
+    <span
+      className="tabmeasure-note"
+      style={{
+        left: `${(note.startBeat / beats) * 100}%`,
+        width: `${(held / beats) * 100}%`,
+        top: `calc(${row} * var(--row-height))`,
+      }}
+    >
+      <span className="tabmeasure-fret" data-fret={position.fret}>
+        {position.fret}
+      </span>
+      <span className="tabmeasure-ring" />
+    </span>
   )
 }
