@@ -5,6 +5,7 @@ import { useRef } from 'react'
 import { TabChart } from '../../src/ui/components/TabChart'
 import { barsFromNotes } from '../../src/music/tab'
 import { steady } from '../../src/content/authoring'
+import type { TimeSignature } from '../../src/music/types'
 
 const FOUR_FOUR = [4, 4] as const
 
@@ -67,5 +68,44 @@ describe('the tab playhead', () => {
     rerender(<Harness beat={2.5} running={false} />)
     await advance()
     expect(states(container)).toEqual([undefined, undefined, undefined, undefined])
+  })
+})
+
+describe('the chart and the highway agree on where a note is', () => {
+  /**
+   * The highway reads a note's absolute beat straight from the exercise. The
+   * chart converts to bars and back. If the two disagree, the playhead and the
+   * fill tick at different moments, which is what a player sees as lag.
+   */
+  function chartedBeats(
+    targets: ReturnType<typeof steady>,
+    signature: TimeSignature = FOUR_FOUR,
+  ): number[] {
+    const { container } = render(
+      <TabChart bars={barsFromNotes(targets, signature)} timeSignature={signature} />,
+    )
+    return [...container.querySelectorAll<HTMLElement>('[data-start-beat]')].map((el) =>
+      Number(el.dataset.startBeat),
+    )
+  }
+
+  it('matches on a run of quarter notes across several bars', () => {
+    const targets = steady(Array.from({ length: 10 }, () => 'A3'))
+    expect(chartedBeats(targets)).toEqual(targets.map((note) => note.startBeat))
+  })
+
+  it('matches on eighth notes, where a note falls between beats', () => {
+    const targets = steady(
+      Array.from({ length: 12 }, () => 'A3'),
+      0,
+      0.5,
+    )
+    expect(chartedBeats(targets)).toEqual(targets.map((note) => note.startBeat))
+  })
+
+  it('matches in three-four, where the bar length is not the default', () => {
+    const three: TimeSignature = [3, 4]
+    const targets = steady(Array.from({ length: 9 }, () => 'A3'))
+    expect(chartedBeats(targets, three)).toEqual(targets.map((note) => note.startBeat))
   })
 })

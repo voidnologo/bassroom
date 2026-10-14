@@ -277,15 +277,14 @@ function drawNote(context: CanvasRenderingContext2D, geometry: Geometry, spec: N
   const playing = isUnderTheLine(note, beat, verdict)
   if (playing) fillPassed(context, rect, geometry.nowX)
 
-  // A note arriving at the now-line gets an outline, so the moment to play it
-  // is marked by shape as well as by position.
-  if (Math.abs(offset) < 0.12) {
-    context.strokeStyle = '#e7edf5'
-    context.lineWidth = 2
-    context.stroke()
-  }
+  // No outline on the arriving note. It fired within 0.12 beats of the line
+  // while the fill and the chart below both change exactly on the beat, so it
+  // read as the two displays ticking at different moments.
 
-  context.fillStyle = verdict || playing ? '#0a0d12' : '#eaf4fb'
+  // One colour for the whole of a note's life on screen, so the only thing
+  // that changes as it crosses the line is the fill behind it. A verdict only
+  // arrives once the take is over, so this cannot flip mid-note.
+  context.fillStyle = verdict ? '#0a0d12' : '#eaf4fb'
   const label = note.position ? String(note.position.fret) : pitchClassName(note.midi)
   context.fillText(label, x + width / 2, y + NOTE_HEIGHT - 7)
 }
