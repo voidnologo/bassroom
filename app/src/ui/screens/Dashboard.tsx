@@ -10,13 +10,10 @@ import {
 import { useProgressStore } from '../../state/progressStore'
 import type { ProgressSnapshot } from '../../progress/types'
 import { LevelBar, Meter, Pill, Stars } from '../components/Indicators'
+import type { Navigate } from '../navigation'
 
 /** Where a session starts: what to play today, and what has been earned so far. */
-export function Dashboard({
-  onNavigate,
-}: {
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
+export function Dashboard({ onNavigate }: { onNavigate: Navigate }) {
   const snapshot = useProgressStore((store) => store.snapshot)
   const today = new Date()
 
@@ -39,7 +36,7 @@ export function Dashboard({
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => onNavigate('practice', plan[0]?.exercise.id)}
+          onClick={() => onNavigate('practice', { exerciseId: plan[0]?.exercise.id })}
         >
           {minutes > 0 ? 'Keep going' : 'Start practising'}
         </button>
@@ -186,13 +183,7 @@ function Retention({ snapshot, today }: { snapshot: ProgressSnapshot; today: Dat
   )
 }
 
-function PlanRow({
-  item,
-  onNavigate,
-}: {
-  item: DailyPlanItem
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
+function PlanRow({ item, onNavigate }: { item: DailyPlanItem; onNavigate: Navigate }) {
   const snapshot = useProgressStore((store) => store.snapshot)
   const stars = snapshot.exercises[item.exercise.id]?.bestStars ?? 0
 
@@ -201,7 +192,7 @@ function PlanRow({
       <button
         type="button"
         className="list-item"
-        onClick={() => onNavigate('practice', item.exercise.id)}
+        onClick={() => onNavigate('practice', { exerciseId: item.exercise.id })}
       >
         <span className="stack" style={{ gap: 2 }}>
           <span>{item.exercise.title}</span>

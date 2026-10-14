@@ -2,13 +2,10 @@ import { LESSONS, UNITS, exerciseById, lessonById } from '../../content/curricul
 import type { Lesson } from '../../music/types'
 import { useProgressStore } from '../../state/progressStore'
 import { Meter, Pill, Stars } from '../components/Indicators'
+import type { Navigate } from '../navigation'
 
 /** The whole curriculum, in order, with what is open and what is not. */
-export function Path({
-  onNavigate,
-}: {
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
+export function Path({ onNavigate }: { onNavigate: Navigate }) {
   const exercises = useProgressStore((store) => store.snapshot.exercises)
   const starsOf = (id: string): number => exercises[id]?.bestStars ?? 0
   const isOpen = (lesson: Lesson): boolean =>
@@ -65,7 +62,7 @@ function LessonCard({
   lesson: Lesson
   open: boolean
   starsOf: (id: string) => number
-  onNavigate: (screen: string, exerciseId?: string) => void
+  onNavigate: Navigate
 }) {
   const started = lesson.exerciseIds.filter((id) => starsOf(id) > 0).length
   const readingOnly = lesson.exerciseIds.length === 0
@@ -112,7 +109,7 @@ function LessonCard({
                   className="list-item"
                   disabled={!open}
                   data-locked={!open}
-                  onClick={() => onNavigate('practice', id)}
+                  onClick={() => onNavigate('practice', { exerciseId: id })}
                 >
                   <span className="stack" style={{ gap: 2 }}>
                     <span>{exercise.title}</span>

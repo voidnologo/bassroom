@@ -19,18 +19,13 @@ import { EstimateOutcome, SelfEstimatePrompt } from '../components/SelfEstimate'
 import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
 import { useOverride } from '../hooks/useOverride'
 import { isDue } from '../../progress/srs'
+import type { Navigate } from '../navigation'
 
 /**
  * The screen the learner spends their practice on: what to play, where it is on
  * the neck, whether it was right, and what to do next.
  */
-export function Practice({
-  exerciseId,
-  onNavigate,
-}: {
-  exerciseId: string
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
+export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNavigate: Navigate }) {
   const exercise = exerciseById(exerciseId) ?? ALL_EXERCISES[0]
   const snapshot = useProgressStore((store) => store.snapshot)
   const { state: engineState } = useAudio()
@@ -387,13 +382,7 @@ function Stat({ label, value, suffix }: { label: string; value: string; suffix?:
   )
 }
 
-function NotListening({
-  state,
-  onNavigate,
-}: {
-  state: string
-  onNavigate: (screen: string) => void
-}) {
+function NotListening({ state, onNavigate }: { state: string; onNavigate: Navigate }) {
   return (
     <div className="card">
       <h3>Not listening yet</h3>
@@ -402,7 +391,7 @@ function NotListening({
         the input on the setup screen.
       </p>
       <p className="small faint mono">engine: {state}</p>
-      <button type="button" className="btn btn-primary" onClick={() => onNavigate('tuner')}>
+      <button type="button" className="btn btn-primary" onClick={() => onNavigate('setup')}>
         Go to setup
       </button>
     </div>
