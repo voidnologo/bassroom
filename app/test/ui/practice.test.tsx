@@ -307,3 +307,76 @@ describe('the chart on the practice screen', () => {
     expect(new Set(beats).size).toBe(beats.length)
   })
 })
+
+describe('the retention check toggle', () => {
+  /**
+   * A take moves the review schedule, which is what the toggle defaults from.
+   * If finishing one overwrites the learner's choice, the next take silently
+   * measures something other than what they asked for.
+   */
+  it('stays off across a completed take', async () => {
+    const { user, engine, exercise } = await openPractice('open-strings-quarter')
+    const toggle = () => screen.getByRole('checkbox', { name: /retention check/i })
+
+    if ((toggle() as HTMLInputElement).checked) await user.click(toggle())
+    expect(toggle()).not.toBeChecked()
+
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await playPerfectly(engine, exercise)
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /on it/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    await user.click(screen.getByRole('button', { name: /on it/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /start take/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(toggle()).not.toBeChecked()
+  })
+
+  it('does not switch itself on after a take the detector heard nothing in', async () => {
+    const { user, engine, exercise } = await openPractice('open-strings-quarter')
+    const toggle = () => screen.getByRole('checkbox', { name: /retention check/i })
+    expect(toggle()).not.toBeChecked()
+
+    // Started and sat through in silence: no notes are fed to the engine.
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    const targets = expandRepeats(exercise)
+    await act(async () => {
+      engine.clock.tickTo(0)
+      engine.clock.tickTo(targets[targets.length - 1].startBeat + 4)
+    })
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /on it/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    await user.click(screen.getByRole('button', { name: /on it/i }))
+
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /start take/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(toggle()).not.toBeChecked()
+  })
+
+  it('stays on across a completed take when that is what was chosen', async () => {
+    const { user, engine, exercise } = await openPractice('open-strings-quarter')
+    const toggle = () => screen.getByRole('checkbox', { name: /retention check/i })
+
+    if (!(toggle() as HTMLInputElement).checked) await user.click(toggle())
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await playPerfectly(engine, exercise)
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /on it/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    await user.click(screen.getByRole('button', { name: /on it/i }))
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /start take/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(toggle()).toBeChecked()
+  })
+})

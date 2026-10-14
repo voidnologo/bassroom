@@ -92,6 +92,20 @@ export function isDue(state: ReviewState, today: Date): boolean {
   return state.dueOn <= toIsoDate(today)
 }
 
+/**
+ * Whether a review is actually owed, rather than merely dated in the past.
+ *
+ * A fresh review state is dated today, so `isDue` is true for an exercise
+ * nobody has practised yet. An interval is only set once a take has been
+ * scheduled against it, which is what separates "never learnt" from "learnt
+ * and now due again". Without that distinction an exercise whose only attempt
+ * was discounted -- a take the detector heard nothing in -- comes back as a
+ * review of something that was never played.
+ */
+export function isReviewDue(state: ReviewState, today: Date): boolean {
+  return state.intervalDays > 0 && isDue(state, today)
+}
+
 export function toIsoDate(date: Date): string {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')

@@ -9,7 +9,7 @@ import { notesPlayed, nothingWasPlayed } from '../engine/judge'
 import type { PerformanceScore } from '../engine/judge'
 import type { Exercise } from '../music/types'
 import { newlyEarnedBadges, recordPractice, xpForAttempt, type XpBreakdown } from './gamification'
-import { createReviewState, daysBetween, isDue, scheduleNextReview, toIsoDate } from './srs'
+import { createReviewState, daysBetween, isReviewDue, scheduleNextReview, toIsoDate } from './srs'
 import {
   PROGRESS_SCHEMA_VERSION,
   type Attempt,
@@ -283,7 +283,7 @@ export function buildDailyPlan(
 
   const dueReviews = available
     .map((exercise) => ({ exercise, progress: snapshot.exercises[exercise.id] }))
-    .filter((entry) => entry.progress !== undefined && isDue(entry.progress.review, now))
+    .filter((entry) => entry.progress !== undefined && isReviewDue(entry.progress.review, now))
     .map((entry) => ({ ...entry, overdueDays: daysBetween(entry.progress!.review.dueOn, now) }))
     .sort((a, b) => b.overdueDays - a.overdueDays)
 

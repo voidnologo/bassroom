@@ -7,6 +7,7 @@ import {
   createReviewState,
   daysBetween,
   isDue,
+  isReviewDue,
   isSuccess,
   scheduleNextReview,
   toIsoDate,
@@ -145,5 +146,28 @@ describe('date helpers', () => {
 
   it('crosses a month boundary correctly', () => {
     expect(toIsoDate(addDays(new Date('2026-03-31T10:00:00'), 1))).toBe('2026-04-01')
+  })
+})
+
+describe('isReviewDue', () => {
+  const fresh = createReviewState(DAY_ONE)
+
+  it('is false for an exercise nobody has practised, though its date says today', () => {
+    expect(isDue(fresh, DAY_ONE)).toBe(true)
+    expect(isReviewDue(fresh, DAY_ONE)).toBe(false)
+  })
+
+  it('is false for an attempt that was never scheduled against', () => {
+    expect(isReviewDue(fresh, addDays(DAY_ONE, 30))).toBe(false)
+  })
+
+  it('is true once a take has scheduled one and its date has come', () => {
+    const scheduled = scheduleNextReview(fresh, 2, DAY_ONE)
+    expect(isReviewDue(scheduled, addDays(DAY_ONE, 10))).toBe(true)
+  })
+
+  it('is false before the scheduled date', () => {
+    const scheduled = scheduleNextReview(fresh, 2, DAY_ONE)
+    expect(isReviewDue(scheduled, DAY_ONE)).toBe(false)
   })
 })
