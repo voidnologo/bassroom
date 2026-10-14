@@ -133,18 +133,31 @@ describe('songs', () => {
     expect(screen.getByRole('button', { name: 'This Is the Christ' })).toBeInTheDocument()
   })
 
-  it('renders tab for the song it opens on', async () => {
+  it('opens on the easier song, which is the one a beginner can finish', async () => {
     const user = await openApp()
     await user.click(screen.getByRole('button', { name: 'Songs' }))
-    const tab = document.querySelector('pre')
-    expect(tab?.textContent).toContain('G |')
+    expect(screen.getByRole('heading', { name: 'Angel' })).toBeInTheDocument()
+  })
+
+  it('draws the chart for the song it opens on', async () => {
+    const user = await openApp()
+    await user.click(screen.getByRole('button', { name: 'Songs' }))
+    expect(document.querySelectorAll('.tabbar').length).toBeGreaterThan(0)
+  })
+
+  it('keeps the fixed-width tab available for printing', async () => {
+    const user = await openApp()
+    await user.click(screen.getByRole('button', { name: 'Songs' }))
+    expect(document.querySelector('pre')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Printable' }))
+    expect(document.querySelector('pre')?.textContent).toContain('G |')
   })
 
   it('switches song without crashing', async () => {
     const user = await openApp()
     await user.click(screen.getByRole('button', { name: 'Songs' }))
-    await user.click(screen.getByRole('button', { name: 'Angel' }))
-    expect(screen.getByRole('heading', { name: 'Angel' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'This Is the Christ' }))
+    expect(screen.getByRole('heading', { name: 'This Is the Christ' })).toBeInTheDocument()
   })
 
   it('switches arrangement without crashing', async () => {
@@ -152,8 +165,7 @@ describe('songs', () => {
     await user.click(screen.getByRole('button', { name: 'Songs' }))
     await user.click(screen.getByRole('button', { name: 'Angel' }))
     await user.click(screen.getByRole('button', { name: 'Full riff' }))
-    const tab = document.querySelector('pre')
-    expect(tab?.textContent).toContain('5')
+    expect(document.querySelectorAll('.tabbar').length).toBeGreaterThan(0)
   })
 
   it('states where the notes came from', async () => {

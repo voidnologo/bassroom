@@ -6,14 +6,14 @@ import { renderTab } from '../../music/tab'
 import type { SongChart } from '../../music/types'
 import { useProgressStore } from '../../state/progressStore'
 import { Pill, Stars } from '../components/Indicators'
+import { TabChart } from '../components/TabChart'
+import type { Navigate } from '../navigation'
 
 /** The two target songs: their tab, their arrangements, and where they came from. */
-export function Songs({
-  onNavigate,
-}: {
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
-  const [openSongId, setOpenSongId] = useState(SONGS[0].id)
+export function Songs({ onNavigate, songId }: { onNavigate: Navigate; songId?: string }) {
+  // Which song is open lives in the navigation trail rather than in this
+  // component, so coming back from practising one lands on it again.
+  const openSongId = songId ?? SONGS[0].id
 
   return (
     <div className="stack" style={{ gap: 18 }}>
@@ -30,7 +30,7 @@ export function Songs({
               key={song.id}
               type="button"
               className={song.id === openSongId ? 'btn btn-primary btn-sm' : 'btn btn-sm'}
-              onClick={() => setOpenSongId(song.id)}
+              onClick={() => onNavigate('songs', { songId: song.id })}
             >
               {song.title}
             </button>
@@ -45,15 +45,10 @@ export function Songs({
   )
 }
 
-function SongDetail({
-  song,
-  onNavigate,
-}: {
-  song: SongChart
-  onNavigate: (screen: string, exerciseId?: string) => void
-}) {
+function SongDetail({ song, onNavigate }: { song: SongChart; onNavigate: Navigate }) {
   const exercises = useProgressStore((store) => store.snapshot.exercises)
   const [arrangementId, setArrangementId] = useState(song.arrangements[0].id)
+  const [layout, setLayout] = useState<'screen' | 'print'>('screen')
   const arrangement =
     song.arrangements.find((candidate) => candidate.id === arrangementId) ?? song.arrangements[0]
   if (!arrangement) return null
@@ -100,7 +95,26 @@ function SongDetail({
         </div>
 
         <p className="small muted">{arrangement.description}</p>
-        <pre>{tab}</pre>
+        <div className="row" style={{ gap: 6, margin: '10px 0 12px' }}>
+          {(['screen', 'print'] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={layout === mode ? 'btn btn-primary btn-sm' : 'btn btn-sm'}
+              aria-pressed={layout === mode}
+              onClick={() => setLayout(mode)}
+            >
+              {mode === 'screen' ? 'On screen' : 'Printable'}
+            </button>
+          ))}
+        </div>
+        {layout === 'screen' ? (
+          <TabChart bars={bars} timeSignature={song.timeSignature} />
+        ) : (
+          <pre tabIndex={0} aria-label={`${song.title} tab, fixed-width for printing`}>
+            {tab}
+          </pre>
+        )}
       </div>
 
       <div className="card">
@@ -116,7 +130,7 @@ function SongDetail({
                 <button
                   type="button"
                   className="list-item"
-                  onClick={() => onNavigate('practice', id)}
+                  onClick={() => onNavigate('practice', { exerciseId: id })}
                 >
                   <span className="stack" style={{ gap: 2 }}>
                     <span>{spec.title}</span>

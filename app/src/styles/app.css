@@ -649,3 +649,174 @@ button.list-item:hover {
 .tuning-state[data-state='in-tune'] {
   color: var(--good);
 }
+
+/* ---- Breadcrumbs --------------------------------------------------------
+   The trail that was walked. Shown only once there is somewhere to go back
+   to, so top-level screens are not given a decorative one-item crumb. */
+
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 4px;
+}
+
+.crumb-back {
+  font-weight: 550;
+}
+
+.crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+  color: var(--text-faint);
+}
+
+.crumbs li + li::before {
+  content: '/';
+  margin-right: 6px;
+  color: var(--border-strong);
+}
+
+.crumb-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.crumb-link:hover,
+.crumb-link:focus-visible {
+  color: var(--accent);
+}
+
+.crumbs [aria-current='page'] {
+  color: var(--text);
+}
+
+/* ---- Tab, laid out for a screen -----------------------------------------
+   Each bar is its own block and wraps when it runs out of room, rather than
+   holding one fixed-width grid together across the whole piece. */
+
+.tabchart {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.tabbar {
+  --row-height: 24px;
+  margin: 0;
+  padding: 10px 12px 14px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.tabbar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tabbar-number {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.tabbar-chord {
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.tabbar-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.tabbar-names {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-faint);
+}
+
+.tabbar-names span {
+  height: var(--row-height);
+  display: flex;
+  align-items: center;
+}
+
+/* The only positioned area, so a note's percentage is a share of the strings
+   and not of the row labels beside them. The side margins hold a number that
+   lands on the first or last beat, which would otherwise hang over the edge. */
+.tabbar-lanes {
+  position: relative;
+  flex: 1;
+  margin: 0 13px;
+  height: calc(4 * var(--row-height));
+}
+
+.tabbar-line {
+  position: absolute;
+  left: -13px;
+  right: -13px;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.tabbar-line:nth-of-type(1) {
+  top: calc(0.5 * var(--row-height));
+}
+.tabbar-line:nth-of-type(2) {
+  top: calc(1.5 * var(--row-height));
+}
+.tabbar-line:nth-of-type(3) {
+  top: calc(2.5 * var(--row-height));
+}
+.tabbar-line:nth-of-type(4) {
+  top: calc(3.5 * var(--row-height));
+}
+
+/* Beat divisions, so a note's place in the bar is readable without counting
+   dashes. */
+.tabbar-beat {
+  position: absolute;
+  top: calc(0.3 * var(--row-height));
+  height: calc(3.4 * var(--row-height));
+  width: 1px;
+  background: color-mix(in srgb, var(--border-strong) 55%, transparent);
+}
+
+.tabbar-fret {
+  position: absolute;
+  transform: translate(-50%, 0);
+  min-width: 21px;
+  height: 21px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #06131c;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 650;
+  box-shadow: 0 0 0 3px var(--bg-sunken);
+}
