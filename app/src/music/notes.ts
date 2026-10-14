@@ -82,3 +82,20 @@ export function intervalName(semitones: number): string {
   if (distance <= 12) return INTERVAL_NAMES[distance]
   return `${INTERVAL_NAMES[distance % 12]} + ${Math.floor(distance / 12)} octave(s)`
 }
+
+/**
+ * How far from equal temperament still counts as in tune, in cents.
+ *
+ * Five cents is roughly the point at which a trained ear stops hearing a
+ * difference against a reference on a bass note, and it is tighter than the
+ * drift a wound string shows across a room's temperature change, so a string
+ * tuned inside it stays inside it for a practice session.
+ */
+export const IN_TUNE_CENTS = 5
+
+export type TuningState = 'in-tune' | 'sharp' | 'flat'
+
+export function tuningStateOf(cents: number): TuningState {
+  if (Math.abs(cents) <= IN_TUNE_CENTS) return 'in-tune'
+  return cents > 0 ? 'sharp' : 'flat'
+}

@@ -550,3 +550,102 @@ button.list-item:hover {
   font-size: 1.05rem;
   font-weight: 500;
 }
+
+/* ---- Tuning bar ---------------------------------------------------------
+   A balance meter: the fill grows from the centre toward the side the note is
+   out on. Direction is position, not hue, so it survives greyscale (RC7). */
+
+.tuning {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tuning-track {
+  position: relative;
+  height: 30px;
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* The in-tune window, drawn so the target is visible before you reach it. */
+.tuning-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 45%;
+  width: 10%;
+  background: color-mix(in srgb, var(--good) 18%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--good) 45%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--good) 45%, transparent);
+}
+
+.tuning-tick {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 1px;
+  background: var(--border-strong);
+}
+
+/* Transitioned because the readout is throttled: without it the fill steps
+   visibly at the sampling rate rather than tracking the string. */
+.tuning-fill {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  background: var(--warn);
+  border-radius: 3px;
+  transition:
+    left 90ms linear,
+    width 90ms linear;
+}
+
+.tuning-fill[data-state='in-tune'] {
+  background: var(--good);
+}
+
+/* Always visible, including dead centre, where the fill has no width. */
+.tuning-head {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 4px;
+  margin-left: -2px;
+  border-radius: 2px;
+  background: var(--warn);
+  transition: left 90ms linear;
+}
+
+.tuning-head[data-state='in-tune'] {
+  background: var(--good);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--good) 60%, transparent);
+}
+
+.tuning-centre {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text-muted);
+}
+
+.tuning-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+}
+
+.tuning-state {
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.tuning-state[data-state='in-tune'] {
+  color: var(--good);
+}

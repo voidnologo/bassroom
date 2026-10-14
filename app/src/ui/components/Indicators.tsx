@@ -84,29 +84,6 @@ export function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
   )
 }
 
-/**
- * A centred needle for the tuner.
- *
- * A left-to-right fill bar cannot show which side of centre you are on without
- * reading the number beside it, which is the opposite of what a tuner is for
- * when both hands are on the instrument.
- */
-export function TuningNeedle({ cents, tolerance = 5 }: { cents: number; tolerance?: number }) {
-  const clamped = Math.max(-50, Math.min(50, cents))
-  const inTune = Math.abs(cents) <= tolerance
-  return (
-    <div
-      className="needle"
-      role="img"
-      aria-label={inTune ? 'In tune' : `${Math.round(cents)} cents ${cents > 0 ? 'sharp' : 'flat'}`}
-    >
-      <span className="needle-band" />
-      <span className="needle-centre" />
-      <span className="needle-mark" data-in-tune={inTune} style={{ left: `${50 + clamped}%` }} />
-    </div>
-  )
-}
-
 export function BeatDots({ beatsPerBar, current }: { beatsPerBar: number; current: number }) {
   return (
     <div className="beat-dots" aria-hidden="true">
