@@ -59,3 +59,23 @@ describe('TuningBar', () => {
     expect(screen.getByRole('img')).toHaveAccessibleName('In tune')
   })
 })
+
+describe('TuningBar with nothing heard', () => {
+  it('still draws the track, so the tuner shows what it is before a string is plucked', () => {
+    const { container } = render(<TuningBar cents={null} />)
+    expect(container.querySelector('.tuning-track')).not.toBeNull()
+    expect(container.querySelector('.tuning-zone')).not.toBeNull()
+  })
+
+  it('shows no needle, so a silent tuner cannot be misread as in tune', () => {
+    const { container } = render(<TuningBar cents={null} />)
+    expect(container.querySelector('.tuning-head')).toBeNull()
+    expect(container.querySelector('.tuning-fill')).toBeNull()
+  })
+
+  it('does not claim a tuning state it has not measured', () => {
+    render(<TuningBar cents={null} />)
+    expect(screen.queryByText('in tune')).toBeNull()
+    expect(screen.getByRole('img', { name: /no note heard/i })).toBeInTheDocument()
+  })
+})

@@ -7,6 +7,9 @@ import { tuningStateOf, type TuningState } from '../../music/notes'
  */
 const RANGE_CENTS = 50
 
+/** Shown in the state slot while nothing is heard, so the row keeps its height. */
+const WAITING_LABEL = 'waiting'
+
 const LABELS: Record<TuningState, string> = {
   'in-tune': 'in tune',
   sharp: 'sharp',
@@ -24,9 +27,14 @@ const LABELS: Record<TuningState, string> = {
  * Direction is carried by position, state by the label, and colour only
  * agrees with both (RC7) -- the bar is still usable in greyscale.
  */
-export function TuningBar({ cents }: { cents: number }): JSX.Element {
-  const state = tuningStateOf(cents)
-  const clamped = Math.max(-RANGE_CENTS, Math.min(RANGE_CENTS, cents))
+/**
+ * `cents` is null when nothing is being heard. The track, its in-tune zone and
+ * its scale are still drawn: the bar is what says what the tuner does, and a
+ * card that is empty until a string is plucked does not say it.
+ */
+export function TuningBar({ cents }: { cents: number | null }): JSX.Element {
+  const state = cents === null ? null : tuningStateOf(cents)
+  const clamped = Math.max(-RANGE_CENTS, Math.min(RANGE_CENTS, cents ?? 0))
   const halfWidthPercent = (Math.abs(clamped) / RANGE_CENTS) * 50
   const fillLeftPercent = clamped < 0 ? 50 - halfWidthPercent : 50
   // The fill has no width at all when the note is dead on, which would make a
@@ -36,15 +44,7 @@ export function TuningBar({ cents }: { cents: number }): JSX.Element {
 
   return (
     <div className="tuning">
-      <div
-        className="tuning-track"
-        role="img"
-        aria-label={
-          state === 'in-tune'
-            ? 'In tune'
-            : `${Math.abs(Math.round(cents))} cents ${state}, out of ${RANGE_CENTS}`
-        }
-      >
+      <div className="tuning-track" role="img" aria-label={readoutLabel(cents, state)}>
         <span className="tuning-zone" />
         {[-RANGE_CENTS / 2, RANGE_CENTS / 2].map((tick) => (
           <span
@@ -53,21 +53,31 @@ export function TuningBar({ cents }: { cents: number }): JSX.Element {
             style={{ left: `${50 + (tick / RANGE_CENTS) * 50}%` }}
           />
         ))}
-        <span
-          className="tuning-fill"
-          data-state={state}
-          style={{ left: `${fillLeftPercent}%`, width: `${halfWidthPercent}%` }}
-        />
+        {state !== null && (
+          <span
+            className="tuning-fill"
+            data-state={state}
+            style={{ left: `${fillLeftPercent}%`, width: `${halfWidthPercent}%` }}
+          />
+        )}
         <span className="tuning-centre" />
-        <span className="tuning-head" data-state={state} style={{ left: `${headPercent}%` }} />
+        {state !== null && (
+          <span className="tuning-head" data-state={state} style={{ left: `${headPercent}%` }} />
+        )}
       </div>
       <div className="tuning-scale">
         <span>flat</span>
-        <span className="tuning-state" data-state={state}>
-          {LABELS[state]}
+        <span className="tuning-state" data-state={state ?? 'waiting'}>
+          {state === null ? WAITING_LABEL : LABELS[state]}
         </span>
         <span>sharp</span>
       </div>
     </div>
   )
+}
+
+function readoutLabel(cents: number | null, state: TuningState | null): string {
+  if (cents === null || state === null) return 'No note heard yet'
+  if (state === 'in-tune') return 'In tune'
+  return `${Math.abs(Math.round(cents))} cents ${state}, out of ${RANGE_CENTS}`
 }
