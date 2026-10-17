@@ -26,6 +26,13 @@ const UNSTEADY_SPREAD_MS = 60
 const RECURRENCE_THRESHOLD = 0.6
 /** Cents flat or sharp beyond this is a fretting-hand problem, not tuning drift. */
 const INTONATION_CENTS = 25
+/** Fewer attacks than this is too short a take to call anything a pattern. */
+const ENOUGH_ATTACKS = 6
+/**
+ * Share of heard attacks with no readable pitch before it is worth saying so.
+ * A quarter of a take is past what a stray muted note or a bad window explains.
+ */
+const UNNAMED_SHARE = 0.25
 
 type Rule = (request: CoachRequest) => Observation | null
 
@@ -36,6 +43,7 @@ const rules: Rule[] = [
   wrongString,
   doublePlucking,
   droppedNotes,
+  ringingStrings,
   intonation,
   unevenAttack,
   secondHalfDecay,
@@ -138,7 +146,40 @@ function droppedNotes({ telemetry }: CoachRequest): Observation | null {
     id: 'missed-notes',
     severity: telemetry.score.missedNotes > 2 ? 'fix' : 'watch',
     statement: `${telemetry.score.missedNotes} note${telemetry.score.missedNotes === 1 ? '' : 's'} did not sound.`,
-    evidence: `First at ${describe(missed[0])}. A note that does not ring is usually a fretting finger not quite behind the fret.`,
+    evidence: `First at ${describe(missed[0])}. ${silenceCause(missed)}`,
+  }
+}
+
+/**
+ * An open string has no fretting hand to blame, and saying so anyway sends a
+ * beginner looking for a fault they cannot have made.
+ */
+function silenceCause(missed: NoteTelemetry[]): string {
+  const allOpen = missed.every((note) => note.fret === 0)
+  if (allOpen) {
+    return 'On an open string that is the plucking finger missing it, or another finger resting on the string.'
+  }
+  return 'A note that does not ring is usually a fretting finger not quite behind the fret.'
+}
+
+/**
+ * Attacks the detector heard but the pitch tracker could not name.
+ *
+ * Two strings sounding together have no common period, so the pitch detector
+ * reports no period at all rather than a wrong one. That is a different fault
+ * from playing nothing, and it has a different fix: damp what you are not
+ * playing.
+ */
+function ringingStrings({ telemetry }: CoachRequest): Observation | null {
+  const heard = telemetry.notes.filter((note) => note.detection !== null)
+  if (heard.length < ENOUGH_ATTACKS) return null
+  const unnamed = heard.filter((note) => note.detection?.frameCount === 0)
+  if (unnamed.length / heard.length < UNNAMED_SHARE) return null
+  return {
+    id: 'ringing-strings',
+    severity: 'fix',
+    statement: 'The app heard you play, but could not tell which note.',
+    evidence: `${unnamed.length} of ${heard.length} attacks had no readable pitch. Two strings ringing at once have no single pitch to find, so mute the ones you are not playing: rest the thumb on the E string.`,
   }
 }
 

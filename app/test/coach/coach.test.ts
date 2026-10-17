@@ -25,15 +25,34 @@ const eightNotes: Exercise = exercise({
   floorBpm: 50,
 })
 
+const openStrings: Exercise = exercise({
+  id: 'test-open-a',
+  title: 'Open A',
+  instructions: 'Play eight quarter notes on the open A string, one per click.',
+  skills: ['plucking-open'],
+  notes: Array.from({ length: 8 }, (_, index) => note('A0', index, 1)),
+  targetBpm: 100,
+  floorBpm: 50,
+})
+
 function played(beat: number, midi: number | null, extras: Partial<PlayedNote> = {}): PlayedNote {
   return { beat, midi, cents: 0, level: 0.5, ...extras }
 }
 
 /** Build a complete request from a list of what the learner actually played. */
 function request(notes: PlayedNote[], bpm = 60, recentTakes: TakeTelemetry[] = []): CoachRequest {
-  const judgments = judgePerformance(eightNotes.notes, notes, bpm)
+  return requestFor(eightNotes, notes, bpm, recentTakes)
+}
+
+function requestFor(
+  subject: Exercise,
+  notes: PlayedNote[],
+  bpm = 60,
+  recentTakes: TakeTelemetry[] = [],
+): CoachRequest {
+  const judgments = judgePerformance(subject.notes, notes, bpm)
   const telemetry = buildTelemetry({
-    exercise: eightNotes,
+    exercise: subject,
     judgments,
     bpm,
     latencyCorrectionMs: 12,
@@ -318,5 +337,51 @@ describe('parseFeedback', () => {
   it('clips text long enough to break the layout', () => {
     const essay = { ...valid, headline: 'x'.repeat(5000) }
     expect(parseFeedback(essay, 'model').headline.length).toBeLessThan(500)
+  })
+})
+
+describe('an attack the pitch tracker could not name', () => {
+  /**
+   * Two strings sounding at once have no common period, so the pitch detector
+   * finds no period rather than the wrong one. Every onset comes back with no
+   * usable frames while the detector itself heard the playing fine.
+   */
+  const heardButUnnamed = (count: number): PlayedNote[] =>
+    Array.from({ length: count }, (_, index) =>
+      played(index, null, {
+        detection: { riseRatio: 1.8, agreement: 0, frameCount: 0, clarity: 0 },
+      }),
+    )
+
+  it('says the app could not tell which note, rather than blaming the playing', async () => {
+    const feedback = await coach.analyze(requestFor(openStrings, heardButUnnamed(8)))
+    const observation = feedback.observations.find((item) => item.id === 'ringing-strings')
+    expect(observation).toBeDefined()
+    expect(observation?.evidence).toMatch(/mute/i)
+  })
+
+  it('stays quiet when the pitches were read normally', async () => {
+    const clean = Array.from({ length: 8 }, (_, index) =>
+      played(index, parseNote('A0'), {
+        detection: { riseRatio: 1.8, agreement: 1, frameCount: 4, clarity: 0.95 },
+      }),
+    )
+    const feedback = await coach.analyze(requestFor(openStrings, clean))
+    expect(feedback.observations.find((item) => item.id === 'ringing-strings')).toBeUndefined()
+  })
+})
+
+describe('advice about notes that did not sound', () => {
+  it('does not blame a fretting finger on an open-string exercise', async () => {
+    const feedback = await coach.analyze(requestFor(openStrings, [played(0, parseNote('A0'))]))
+    const observation = feedback.observations.find((item) => item.id === 'missed-notes')
+    expect(observation).toBeDefined()
+    expect(observation?.evidence).not.toMatch(/fret/i)
+  })
+
+  it('still names the fretting hand when the exercise is fretted', async () => {
+    const feedback = await coach.analyze(request([played(0, parseNote('A3'))]))
+    const observation = feedback.observations.find((item) => item.id === 'missed-notes')
+    expect(observation?.evidence).toMatch(/fret/i)
   })
 })
