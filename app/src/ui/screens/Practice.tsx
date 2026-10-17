@@ -5,7 +5,7 @@ import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote } from '../../music/types'
 import type { NextAction } from '../../coach/types'
 import type { PerformanceScore, Verdict } from '../../engine/judge'
-import { starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
+import { nextRungBpm, starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
 import type { AttemptResult } from '../../progress/reducer'
 import { progressFor } from '../../progress/reducer'
 import type { ExerciseProgress } from '../../progress/types'
@@ -48,6 +48,13 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
 
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
 
+  /** A speed-up with no tempo of its own takes the ladder's next rung. */
+  const tempoFor = (action: NextAction): number => {
+    if (action.bpm !== undefined) return action.bpm
+    if (action.kind === 'speed-up') return Math.min(exercise.targetBpm, nextRungBpm(bpm))
+    return bpm
+  }
+
   /** Only the kinds that mean "go again" start a take. */
   const handleCoachAction = (action: NextAction): void => {
     if (action.kind === 'switch-exercise') {
@@ -58,7 +65,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
     // Passed into the take rather than set and read back: a state update does
     // not land before the next line, so the take would run at the tempo the
     // coach had just told the learner to leave.
-    const nextBpm = action.bpm ?? bpm
+    const nextBpm = tempoFor(action)
     setBpm(nextBpm)
     start(nextBpm)
   }

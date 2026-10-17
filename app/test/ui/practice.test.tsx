@@ -309,11 +309,6 @@ describe('the chart on the practice screen', () => {
 })
 
 describe('the retention check toggle', () => {
-  /**
-   * A take moves the review schedule, which is what the toggle defaults from.
-   * If finishing one overwrites the learner's choice, the next take silently
-   * measures something other than what they asked for.
-   */
   it('stays off across a completed take', async () => {
     const { user, engine, exercise } = await openPractice('open-strings-quarter')
     const toggle = () => screen.getByRole('checkbox', { name: /retention check/i })
@@ -378,5 +373,28 @@ describe('the retention check toggle', () => {
       WAIT,
     )
     expect(toggle()).toBeChecked()
+  })
+})
+
+describe('the coach action that changes tempo', () => {
+  it('raises the tempo for the next take when the coach says to speed up', async () => {
+    const { user, engine, exercise } = await openPractice('open-strings-quarter')
+    const tempo = () => Number((screen.getByRole('slider') as HTMLInputElement).value)
+    const startingBpm = tempo()
+
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await playPerfectly(engine, exercise)
+    await waitFor(
+      () => expect(screen.getByRole('button', { name: /on it/i })).toBeInTheDocument(),
+      WAIT,
+    )
+    await user.click(screen.getByRole('button', { name: /on it/i }))
+
+    const speedUp = await waitFor(
+      () => screen.getByRole('button', { name: /speed up and go/i }),
+      WAIT,
+    )
+    await user.click(speedUp)
+    expect(tempo()).toBeGreaterThan(startingBpm)
   })
 })
