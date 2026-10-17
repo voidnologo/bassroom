@@ -25,7 +25,7 @@ npm run test:coverage  # vitest with the 70% threshold enforced
 npm run build:worklet  # regenerate public/pitch-processor.js from src/audio/worklet/
 ```
 
-`public/pitch-processor.js` is generated and untracked. `npm run dev` and `npm run build` regenerate it; nothing should edit it.
+`public/pitch-processor.js` is generated and untracked; nothing should edit it. `npm run dev` builds it once at startup and then rebuilds it whenever `src/audio/worklet/` or `src/audio/dsp/` changes. Vite's HMR does not cover it — it is a build artifact, not a module the page imports — so without that watch a dev server goes on serving the detector it started with, however much the source changes underneath it.
 
 ## If you're working on X, read Y
 
