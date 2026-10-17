@@ -5,7 +5,7 @@ import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote } from '../../music/types'
 import type { NextAction } from '../../coach/types'
 import type { PerformanceScore, Verdict } from '../../engine/judge'
-import { starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
+import { nextRungBpm, starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
 import type { AttemptResult } from '../../progress/reducer'
 import { progressFor } from '../../progress/reducer'
 import type { ExerciseProgress } from '../../progress/types'
@@ -20,7 +20,6 @@ import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
 import { TabChart } from '../components/TabChart'
 import { barsFromNotes } from '../../music/tab'
 import { useOverride } from '../hooks/useOverride'
-import { isReviewDue } from '../../progress/srs'
 import type { Navigate } from '../navigation'
 
 /**
@@ -35,10 +34,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
   const progress = useMemo(() => progressFor(snapshot, exercise, new Date()), [snapshot, exercise])
   const [bpm, setBpm] = useOverride(exercise.id, progress.ladder.currentBpm)
 
-  // A review that is due defaults to a probe: measuring what has been retained
-  // is only honest when the cues that inflate it are switched off.
-  const dueForReview = isReviewDue(progress.review, new Date())
-  const [isProbe, setIsProbe] = useOverride(exercise.id, dueForReview)
+  const [isProbe, setIsProbe] = useOverride(exercise.id, false)
 
   const { take, targets, beatRef, verdictsRef, start, stop, submitEstimate, ready } =
     usePracticeTake(exercise, bpm, { isProbe, askForEstimate: exercise.mode === 'play-along' })
@@ -47,6 +43,13 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
   useTakeShortcut(running, start, stop)
 
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
+
+  /** A speed-up with no tempo of its own takes the ladder's next rung. */
+  const tempoFor = (action: NextAction): number => {
+    if (action.bpm !== undefined) return action.bpm
+    if (action.kind === 'speed-up') return Math.min(exercise.targetBpm, nextRungBpm(bpm))
+    return bpm
+  }
 
   /** Only the kinds that mean "go again" start a take. */
   const handleCoachAction = (action: NextAction): void => {
@@ -58,7 +61,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
     // Passed into the take rather than set and read back: a state update does
     // not land before the next line, so the take would run at the tempo the
     // coach had just told the learner to leave.
-    const nextBpm = action.bpm ?? bpm
+    const nextBpm = tempoFor(action)
     setBpm(nextBpm)
     start(nextBpm)
   }

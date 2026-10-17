@@ -215,6 +215,11 @@ describe('HeuristicCoach', () => {
     expect(feedback.nextAction.kind).toBe('speed-up')
   })
 
+  it('names the tempo to move up to when it says to speed up', async () => {
+    const feedback = await coach.analyze(request(perfectTake(), 70))
+    expect(feedback.nextAction.bpm ?? 70).toBeGreaterThan(70)
+  })
+
   it('never suggests speeding up after a poor take', async () => {
     const feedback = await coach.analyze(request(perfectTake().slice(0, 3), 70))
     expect(feedback.nextAction.kind).not.toBe('speed-up')

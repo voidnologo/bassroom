@@ -71,7 +71,7 @@ export function advanceLadder(state: LadderState, score: PerformanceScore): Ladd
     }
   }
 
-  const nextBpm = Math.min(state.targetBpm, nextRung(state.currentBpm))
+  const nextBpm = Math.min(state.targetBpm, nextRungBpm(state.currentBpm))
   return {
     next: { ...state, currentBpm: nextBpm, cleanTakes: 0 },
     message: `Up to ${nextBpm} bpm.`,
@@ -82,7 +82,7 @@ export function advanceLadder(state: LadderState, score: PerformanceScore): Ladd
  * Roughly 8% steps, rounded to a whole bpm and never smaller than 2 bpm, so the
  * jump is small enough that the hands barely notice it.
  */
-function nextRung(bpm: number): number {
+export function nextRungBpm(bpm: number): number {
   return bpm + Math.max(2, Math.round(bpm * 0.08))
 }
 

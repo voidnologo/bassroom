@@ -1,4 +1,4 @@
-import { DEMOTION_SCORE, PROMOTION_SCORE } from '../engine/tempoLadder'
+import { DEMOTION_SCORE, nextRungBpm, PROMOTION_SCORE } from '../engine/tempoLadder'
 import type {
   CoachFeedback,
   CoachProvider,
@@ -268,9 +268,11 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
   }
 
   if (telemetry.score.overall >= PROMOTION_SCORE && telemetry.bpm < telemetry.exercise.targetBpm) {
+    const nextBpm = Math.min(telemetry.exercise.targetBpm, nextRungBpm(telemetry.bpm))
     return {
       kind: 'speed-up',
-      detail: 'Clean enough to move up a step. Take it again a little faster.',
+      detail: `Clean enough to move up a step. Take it again at ${nextBpm} bpm.`,
+      bpm: nextBpm,
     }
   }
 
