@@ -86,6 +86,19 @@ describe('OnsetDetector', () => {
     expect(onsets).toHaveLength(1)
   })
 
+  it('reports the peak of the attack, not the level at the moment it fired', () => {
+    // The fast envelope needs a few milliseconds to reach the peak of a pluck,
+    // so the level at the threshold crossing is well below how hard it was hit.
+    const onsets = run(detector(), concat(silence(2400), pluck(65.41, 0.5, 0.6)))
+    expect(onsets[0].level).toBeGreaterThan(0.2)
+  })
+
+  it('does not report the noise gate as the level of the first note', () => {
+    const floorAmplitude = 10 ** (DEFAULT_ONSET_OPTIONS.floorDb / 20)
+    const onsets = run(detector(), concat(silence(4800), pluck(55, 1, 0.03)))
+    expect(onsets[0].level).toBeGreaterThan(floorAmplitude * 4)
+  })
+
   it('reports a level that reflects how hard the string was hit', () => {
     const soft = run(detector(), concat(silence(2400), pluck(65.41, 0.5, 0.15)))
     const hard = run(detector(), concat(silence(2400), pluck(65.41, 0.5, 0.8)))

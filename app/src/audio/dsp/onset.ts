@@ -32,6 +32,8 @@ export interface OnsetOptions {
   floorDb: number
   /** Shortest gap two deliberate plucks can have, in milliseconds. */
   refractoryMs: number
+  /** How long an attack is followed before its level is reported. */
+  attackHoldMs: number
 }
 
 export const DEFAULT_ONSET_OPTIONS: Omit<OnsetOptions, 'sampleRate'> = {
@@ -43,12 +45,17 @@ export const DEFAULT_ONSET_OPTIONS: Omit<OnsetOptions, 'sampleRate'> = {
   // 70 ms is shorter than any gap a player produces deliberately: sixteenth
   // notes at 200 bpm are 75 ms apart.
   refractoryMs: 70,
+  // The fast envelope needs a few milliseconds to reach the peak of an attack.
+  // Reporting the level at the threshold crossing instead gave the first note
+  // of a take the level of the noise gate, which is the figure the coach's
+  // comparison of loudest to quietest attack is built from.
+  attackHoldMs: 12,
 }
 
 export interface DetectedOnset {
   /** Absolute time of the attack, accurate to the sample. */
   time: number
-  /** Fast-envelope amplitude at the attack, 0..1. */
+  /** Peak fast-envelope amplitude of the attack, 0..1. */
   level: number
   /**
    * How far the fast envelope exceeded the reference, in amplitude, at the
@@ -67,9 +74,17 @@ export class OnsetDetector {
   private readonly fallCoefficient: number
   private readonly floorEnergy: number
   private readonly refractorySeconds: number
+  private readonly holdSeconds: number
   private readonly ratioEnergyThreshold: number
   private readonly sampleInterval: number
   private lastOnsetTime = Number.NEGATIVE_INFINITY
+
+  // An attack being followed for its peak. Separate fields rather than an
+  // object, so nothing is allocated per sample.
+  private holding = false
+  private heldTime = 0
+  private heldRiseRatio = 0
+  private heldPeakEnergy = 0
 
   constructor(options: OnsetOptions) {
     const { sampleRate, floorDb, refractoryMs, riseRatio } = options
@@ -83,6 +98,7 @@ export class OnsetDetector {
     this.floorEnergy = (10 ** (floorDb / 20)) ** 2
     this.ratioEnergyThreshold = riseRatio ** 2
     this.refractorySeconds = refractoryMs / 1000
+    this.holdSeconds = options.attackHoldMs / 1000
   }
 
   /**
@@ -101,16 +117,40 @@ export class OnsetDetector {
       const time = blockStartTime + i * this.sampleInterval
       const settling = time - this.lastOnsetTime <= this.refractorySeconds
       this.advanceEnvelopes(block[i] * block[i], settling)
+      if (this.holding) this.followAttack(time, onOnset)
       if (settling || !this.isAttack()) continue
       this.lastOnsetTime = time
-      onOnset({ time, level: Math.sqrt(this.fastEnergy), riseRatio: this.measuredRiseRatio() })
+      this.startHolding(time)
     }
+  }
+
+  /**
+   * The refractory window is longer than the hold, so an attack always reports
+   * before the next one can begin.
+   */
+  private followAttack(time: number, onOnset: (onset: DetectedOnset) => void): void {
+    this.heldPeakEnergy = Math.max(this.heldPeakEnergy, this.fastEnergy)
+    if (time - this.heldTime < this.holdSeconds) return
+    this.holding = false
+    onOnset({
+      time: this.heldTime,
+      level: Math.sqrt(this.heldPeakEnergy),
+      riseRatio: this.heldRiseRatio,
+    })
+  }
+
+  private startHolding(time: number): void {
+    this.holding = true
+    this.heldTime = time
+    this.heldRiseRatio = this.measuredRiseRatio()
+    this.heldPeakEnergy = this.fastEnergy
   }
 
   reset(): void {
     this.fastEnergy = 0
     this.referenceEnergy = 0
     this.lastOnsetTime = Number.NEGATIVE_INFINITY
+    this.holding = false
   }
 
   /**
