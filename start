@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+#
+# Start Bassroom: the worklet build, the Vite dev server, the coach server, and
+# a browser pointed at the app. Run it from anywhere; it locates the repo from
+# its own path. Stop everything with Ctrl-C.
+#
+set -euo pipefail
+
+# A process launched from Finder or Spotlight inherits a bare PATH that has
+# neither Homebrew nor asdf on it, so the places Node actually lives are added
+# back here rather than assumed.
+PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.asdf/shims:$PATH"
+export PATH
+
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$REPO/app"
+URL="http://localhost:5173"
+MIN_NODE_MAJOR=20
+STARTUP_TIMEOUT=90
+
+# Chromium-family browsers are the ones with AudioWorklet timing and input
+# device selection reliable enough for the latency measurement to mean anything.
+CHROMIUM_BROWSERS=("Google Chrome" "Brave Browser" "Chromium" "Microsoft Edge")
+
+die() {
+  printf '\nBassroom: %s\n' "$*" >&2
+  exit 1
+}
+
+require_node() {
+  command -v node >/dev/null 2>&1 || die "Node $MIN_NODE_MAJOR or newer is required, and no node was found on PATH."
+  local major
+  major="$(node -p 'process.versions.node.split(".")[0]')"
+  [ "$major" -ge "$MIN_NODE_MAJOR" ] || die "Node $MIN_NODE_MAJOR or newer is required; this is $(node -v)."
+}
+
+# npm install is slow enough to be worth skipping, and node_modules is the only
+# honest signal of whether it has ever run here.
+ensure_deps() {
+  [ -d "$APP_DIR/node_modules" ] && return 0
+  echo "Bassroom: installing dependencies, which happens once…"
+  (cd "$APP_DIR" && npm install)
+}
+
+server_is_up() {
+  curl -fsS -o /dev/null --max-time 2 "$URL" 2>/dev/null
+}
+
+pick_browser() {
+  local name
+  for name in "${CHROMIUM_BROWSERS[@]}"; do
+    open -Ra "$name" >/dev/null 2>&1 && { printf '%s' "$name"; return 0; }
+  done
+  return 1
+}
+
+open_app() {
+  local browser
+  if ! browser="$(pick_browser)"; then
+    echo "Bassroom: no Chromium browser installed, so the default browser gets it. Pitch and timing are only measured against Chrome-family browsers."
+    open "$URL"
+    return 0
+  fi
+  open -a "$browser" "$URL"
+}
+
+# Vite is ready some seconds after npm starts, and opening the tab before then
+# gives a connection error the person has to reload past.
+open_when_ready() {
+  local waited=0
+  while [ "$waited" -lt "$STARTUP_TIMEOUT" ]; do
+    server_is_up && { open_app; return 0; }
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo "Bassroom: no answer on $URL after ${STARTUP_TIMEOUT}s. Open it by hand once the server reports ready." >&2
+}
+
+main() {
+  require_node
+  # Clicking the launcher twice should land on the running app, not start a
+  # second Vite on a port nothing else knows about.
+  if server_is_up; then
+    echo "Bassroom is already running. Opening $URL."
+    open_app
+    exit 0
+  fi
+  ensure_deps
+  echo "Bassroom: starting on $URL — Ctrl-C stops it."
+  open_when_ready &
+  cd "$APP_DIR"
+  exec npm run dev
+}
+
+main "$@"

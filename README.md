@@ -1,14 +1,40 @@
+<div align="center">
+
+<img src="docs/icon.png" alt="" width="132" height="132">
+
 # Bassroom
 
-A practice coach for learning bass guitar from nothing. It listens to you play through an audio interface, tells you what you actually did rather than what you think you did, and works through a path that ends at two specific songs: **Angel** by Massive Attack, and the hymn **This Is the Christ**.
+**A practice coach that teaches bass guitar from zero.**
 
-Both songs are in `tabs/`, transcribed and cross-checked. Both are playable inside the app at any tempo from a crawl upward.
+It listens to you play through an audio interface, tells you what you actually did rather than what you think you did, and works through a path that ends at two specific songs: **Angel** by Massive Attack, and the hymn **This Is the Christ**.
+
+[![CI](https://github.com/voidnologo/bassroom/actions/workflows/ci.yml/badge.svg)](https://github.com/voidnologo/bassroom/actions/workflows/ci.yml)
+
+</div>
 
 ![The practice screen during a take: the target note named at the top, the fretboard showing where to put your hand, and the note highway scrolling through the playhead below it](docs/screenshots/practice.jpg)
+
+Both songs are in `tabs/`, transcribed and cross-checked. Both are playable inside the app at any tempo from a crawl upward.
 
 ## Running it
 
 You need Node 20 or newer, a bass, and an audio interface. A Focusrite Scarlett Solo is what this was built against.
+
+```bash
+./start
+```
+
+That installs dependencies on the first run, builds the worklet, starts the Vite dev server and the coach server together, and opens the app once it answers. Ctrl-C stops everything. Run it a second time and it opens the tab on the server already running rather than starting another one.
+
+For something to click, or to find in Spotlight:
+
+```bash
+./scripts/make-launcher.sh
+```
+
+That builds `~/Applications/Bassroom.app`, a bundle whose only job is to open a terminal on `./start` — so there stays one definition of how the app starts, and the dev server's output stays somewhere you can read it. Set `BASSROOM_TERMINAL_APP` to iTerm or Ghostty before running it to use a different terminal.
+
+The npm commands work too, if you would rather drive it yourself:
 
 ```bash
 cd app
@@ -16,7 +42,9 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 in Chrome, go to **Setup**, start the input, and run the latency measurement. That measurement is what makes the timing feedback honest, so it is worth the two minutes.
+Either way, open http://localhost:5173, go to **Setup**, start the input, and run the latency measurement. That measurement is what makes the timing feedback honest, so it is worth the two minutes.
+
+![The Setup screen: an input device selector with a Start listening button, a tuner, and the latency measurement](docs/screenshots/setup.jpg)
 
 The coach works offline out of the box. To use a model for feedback instead of the built-in rules, copy `app/.env.example` to `app/.env` and put an Anthropic API key in it. The key is read by the local coach server and never reaches the browser.
 
@@ -40,21 +68,21 @@ Firefox and Safari will mostly work, but Chrome is the one with reliable `AudioW
 
 ## A look at it
 
-|     |     |
-| --- | --- |
-| <img src="docs/screenshots/today.jpg" alt="The Today screen, showing the daily goal, streak and level, and a short list of exercises to practise"><br>**Today** — reviews first, then what is already underway, then new material. | <img src="docs/screenshots/path.jpg" alt="The lesson path, showing the Foundations unit and the exercises inside each lesson"><br>**The path** — each lesson opens once the one it needs is passed. |
-| <img src="docs/screenshots/self-estimate.jpg" alt="A prompt reading 'Before you look — how was your timing?' with buttons for Ahead, On it and Behind"><br>**Asked before told** — you guess, then you see the numbers. | <img src="docs/screenshots/songs.jpg" alt="The Songs screen showing generated bass tab for This Is the Christ with chord symbols and bar numbers"><br>**Songs** — the tab is generated from the notes the app plays. |
+|                                                                                                                                                                                                                                    |                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/today.jpg" alt="The Today screen, showing the daily goal, streak and level, and a short list of exercises to practise"><br>**Today** — reviews first, then what is already underway, then new material. | <img src="docs/screenshots/path.jpg" alt="The lesson path, showing the Foundations unit and the exercises inside each lesson"><br>**The path** — each lesson opens once the one it needs is passed.                     |
+| <img src="docs/screenshots/songs.jpg" alt="The Songs screen showing generated bass tab for This Is the Christ with chord symbols and bar numbers"><br>**Songs** — the tab is generated from the notes the app plays.               | <img src="docs/screenshots/self-estimate.jpg" alt="A prompt reading 'Before you look — how was your timing?' with buttons for Ahead, On it and Behind"><br>**Asked before told** — you guess, then you see the numbers. |
 
 ## The path
 
 Ten lessons in four units, from "which string is which" to the complete hymn. Material from both target songs appears as early as it can be played, so the work is always visibly going somewhere.
 
-| Unit          | Lessons                                                            |
-| ------------- | ------------------------------------------------------------------ |
-| Foundations   | Get set up · The plucking hand · The fretting hand                 |
-| Fundamentals  | Finding notes · Playing in time · Shapes that move                 |
-| Playing music | Ode to Joy, Twinkle, Happy Birthday                                |
-| The songs     | Angel · This Is the Christ, roots · This Is the Christ, full line  |
+| Unit          | Lessons                                                           |
+| ------------- | ----------------------------------------------------------------- |
+| Foundations   | Get set up · The plucking hand · The fretting hand                |
+| Fundamentals  | Finding notes · Playing in time · Shapes that move                |
+| Playing music | Ode to Joy, Twinkle, Happy Birthday                               |
+| The songs     | Angel · This Is the Christ, roots · This Is the Christ, full line |
 
 See [docs/curriculum.md](docs/curriculum.md) for what each lesson is for and why it is where it is.
 
@@ -69,6 +97,8 @@ The tab files are generated from the same data the app plays, by `npm run tabs`,
 ## Layout
 
 ```
+start         starts everything; the launcher and the docs both point at it
+scripts/      the macOS launcher bundle and the icon it is built from
 app/          the application
   src/audio/    stream, worklet, and the DSP behind it
   src/music/    pitch arithmetic, fretboard geometry, tab rendering

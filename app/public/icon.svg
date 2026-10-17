@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Source for the launcher icon. Colours are the app's own tokens from
+       src/styles/app.css, so the icon and the running app match. -->
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2230"/>
+      <stop offset="1" stop-color="#0a0d12"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3d2e21"/>
+      <stop offset="0.55" stop-color="#2a1f18"/>
+      <stop offset="1" stop-color="#1d150f"/>
+    </linearGradient>
+    <radialGradient id="playglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ff9542" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ff9542" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="squircle">
+      <rect x="64" y="64" width="896" height="896" rx="200"/>
+    </clipPath>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#plate)"/>
+
+  <g clip-path="url(#squircle)">
+    <g transform="rotate(-18 512 512)">
+      <rect x="-40" y="302" width="1104" height="420" rx="20" fill="url(#wood)"/>
+
+      <!-- Frets. -->
+      <g fill="#5c6a7e" opacity="0.85">
+        <rect x="196" y="302" width="12" height="420"/>
+        <rect x="416" y="302" width="12" height="420"/>
+        <rect x="636" y="302" width="12" height="420"/>
+        <rect x="856" y="302" width="12" height="420"/>
+      </g>
+      <circle cx="746" cy="512" r="19" fill="#8d9bb0" opacity="0.45"/>
+
+      <!-- Four strings, thick to thin: the cue that says bass and not guitar. -->
+      <g fill="#9aa6b5">
+        <rect x="-40" y="361" width="1104" height="32" rx="16"/>
+        <rect x="-40" y="454" width="1104" height="26" rx="13"/>
+        <rect x="-40" y="547" width="1104" height="20" rx="10"/>
+        <rect x="-40" y="640" width="1104" height="15" rx="7.5"/>
+      </g>
+
+      <!-- The now-line and the note sounding on it, as the practice highway
+           draws them. -->
+      <circle cx="530" cy="467" r="210" fill="url(#playglow)"/>
+      <rect x="517" y="302" width="14" height="420" rx="7" fill="#ff9542" opacity="0.6"/>
+      <circle cx="530" cy="467" r="62" fill="#ff9542"/>
+      <circle cx="530" cy="467" r="62" fill="none" stroke="#0a0d12" stroke-width="8" opacity="0.6"/>
+    </g>
+  </g>
+
+  <rect x="67" y="67" width="890" height="890" rx="197" fill="none" stroke="#35404f" stroke-width="6"/>
+</svg>
