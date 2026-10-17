@@ -50,6 +50,7 @@ function score(overall: number, overrides: Partial<PerformanceScore> = {}): Perf
     extraNotes: 0,
     missedNotes: 0,
     wrongPitchNotes: 0,
+    unnamedNotes: 0,
     totalTargets: 4,
     overall,
     ...overrides,

@@ -525,6 +525,11 @@ button.list-item:hover {
 .verdict-chip[data-verdict='wrong-pitch'] {
   background: var(--bad);
 }
+/* Heard, but no pitch could be read. Neither the good green nor the bad red,
+   and hollow rather than solid: something registered, and it is unresolved. */
+.verdict-chip[data-verdict='unpitched'] {
+  background: radial-gradient(circle at center, transparent 0 3px, var(--text-muted) 3px);
+}
 .verdict-chip[data-verdict='missed'] {
   background: transparent;
   border: 1px dashed var(--border-strong);

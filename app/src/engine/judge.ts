@@ -1,6 +1,14 @@
 import type { TargetNote } from '../music/types'
 
-export type Verdict = 'perfect' | 'good' | 'early' | 'late' | 'wrong-pitch' | 'missed' | 'extra'
+/**
+ * `unpitched` is an attack that was heard and carried no single readable
+ * pitch - two strings ringing together have no common period, so the detector
+ * finds none rather than finding the wrong one. It is deliberately not
+ * `wrong-pitch`: the app has not established that the note was wrong, only
+ * that it cannot say what the note was.
+ */
+export type Verdict =
+  'perfect' | 'good' | 'early' | 'late' | 'wrong-pitch' | 'unpitched' | 'missed' | 'extra'
 
 export interface PlayedNote {
   /** Body-beat position derived from the onset, already latency-corrected. */
@@ -39,6 +47,13 @@ export interface NoteJudgment {
   timingErrorMs: number | null
   /** Signed pitch error in semitones. */
   semitoneError: number | null
+  /**
+   * Whether the attack landed inside the "good" window, decided without
+   * reference to the pitch. Null when nothing was played. Timing is knowable
+   * for an attack whose pitch is not, and conflating the two was telling a
+   * player who plucked on the beat that they had played a wrong note.
+   */
+  inTime: boolean | null
 }
 
 export interface TimingWindows {
@@ -103,6 +118,7 @@ export function judgePerformance(
         verdict: 'extra',
         timingErrorMs: null,
         semitoneError: null,
+        inTime: null,
       })
       continue
     }
@@ -119,6 +135,7 @@ export function judgePerformance(
       verdict: verdictFor(semitoneError, timingErrorMs, windows),
       timingErrorMs,
       semitoneError,
+      inTime: Math.abs(timingErrorMs) <= windows.goodMs,
     })
   }
 
@@ -131,6 +148,7 @@ export function judgePerformance(
       verdict: 'missed',
       timingErrorMs: null,
       semitoneError: null,
+      inTime: null,
     })
   })
 
@@ -142,7 +160,8 @@ function verdictFor(
   timingErrorMs: number,
   windows: TimingWindows,
 ): Verdict {
-  if (semitoneError === null || semitoneError !== 0) return 'wrong-pitch'
+  if (semitoneError === null) return 'unpitched'
+  if (semitoneError !== 0) return 'wrong-pitch'
   const magnitude = Math.abs(timingErrorMs)
   if (magnitude <= windows.perfectMs) return 'perfect'
   if (magnitude <= windows.goodMs) return 'good'
@@ -167,10 +186,15 @@ export interface PerformanceScore {
   extraNotes: number
   missedNotes: number
   wrongPitchNotes: number
+  /** Attacks heard whose pitch could not be read. Scored neither way. */
+  unnamedNotes: number
   totalTargets: number
   /** Combined 0..100 figure used for stars, XP, and the tempo ladder. */
   overall: number
 }
+
+const PITCH_WEIGHT = 0.6
+const TIMING_WEIGHT = 0.4
 
 export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
   const targeted = judgments.filter((judgment) => judgment.target !== null)
@@ -179,9 +203,11 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
   const correctPitch = targeted.filter(
     (judgment) => judgment.verdict !== 'missed' && judgment.semitoneError === 0,
   )
-  const inTime = targeted.filter(
-    (judgment) => judgment.verdict === 'perfect' || judgment.verdict === 'good',
-  )
+  // An attack whose pitch could not be read is left out of the pitch figure
+  // altogether: the app has said it does not know, so it can neither credit
+  // the note nor count it wrong.
+  const nameable = targeted.filter((judgment) => judgment.verdict !== 'unpitched')
+  const inTime = targeted.filter((judgment) => judgment.inTime === true)
   const errors = targeted
     .map((judgment) => judgment.timingErrorMs)
     .filter((value): value is number => value !== null)
@@ -191,18 +217,22 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
     ? errors.reduce((sum, value) => sum + (value - meanTimingErrorMs) ** 2, 0) / errors.length
     : 0
 
-  const pitchAccuracy = correctPitch.length / total
+  const pitchAccuracy = nameable.length === 0 ? 0 : correctPitch.length / nameable.length
   const timingAccuracy = inTime.length / total
   const extraNotes = judgments.filter((judgment) => judgment.verdict === 'extra').length
 
   // Pitch is weighted above timing because playing the wrong note is a
   // different kind of mistake from playing the right note slightly late, and
   // extra notes are penalised separately so that flailing cannot score well.
+  //
+  // Pitch carries only as much of the score as the app could actually read, so
+  // a take it could name nothing in is scored on its timing rather than on an
+  // accuracy figure standing in for an unanswered question.
+  const pitchWeight = PITCH_WEIGHT * (nameable.length / total)
   const extraPenalty = Math.min(0.25, (extraNotes / total) * 0.5)
-  const overall = Math.max(
-    0,
-    Math.round((pitchAccuracy * 0.6 + timingAccuracy * 0.4 - extraPenalty) * 100),
-  )
+  const judged =
+    (pitchAccuracy * pitchWeight + timingAccuracy * TIMING_WEIGHT) / (pitchWeight + TIMING_WEIGHT)
+  const overall = Math.max(0, Math.round((judged - extraPenalty) * 100))
 
   return {
     pitchAccuracy,
@@ -212,6 +242,7 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
     extraNotes,
     missedNotes: targeted.filter((judgment) => judgment.verdict === 'missed').length,
     wrongPitchNotes: targeted.filter((judgment) => judgment.verdict === 'wrong-pitch').length,
+    unnamedNotes: targeted.length - nameable.length,
     totalTargets: targeted.length,
     overall,
   }
