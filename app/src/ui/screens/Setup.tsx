@@ -13,6 +13,8 @@ import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
 import { useDiagnosticsRecorder } from '../hooks/useDiagnosticsRecorder'
 import { Pill } from '../components/Indicators'
+import type { PitchFrame } from '../../audio/contracts'
+import { settledPitch, type SettledPitch } from '../../engine/tuning'
 import { LevelMeter } from '../components/LevelMeter'
 import { TuningBar } from '../components/TuningBar'
 
@@ -119,15 +121,21 @@ export function Setup() {
 /** Live tuning readout for all four strings. */
 function Tuner() {
   const { engine, state } = useAudio()
-  const [reading, setReading] = useState<{ midi: number; cents: number } | null>(null)
+  const [reading, setReading] = useState<SettledPitch | null>(null)
+  const recent = useRef<PitchFrame[]>([])
 
   useEffect(() => {
     let last = 0
     return engine.onPitch((frame) => {
+      // Every reading is kept, because the answer is a vote among them. Only
+      // the redraw is throttled.
+      recent.current = [...recent.current, frame].filter(
+        (held) => held.time >= frame.time - TUNER_MEMORY_SECONDS,
+      )
       const now = performance.now()
-      if (now - last < 80) return
+      if (now - last < TUNER_REDRAW_MS) return
       last = now
-      setReading(frame.midi === null ? null : { midi: frame.midi, cents: frame.cents })
+      setReading(settledPitch(recent.current, frame.time))
     })
   }, [engine])
 
@@ -178,6 +186,11 @@ function tunerHint(options: {
   const semitones = Math.abs(reading.midi - nearest.midi)
   return `Nearest open string is ${nearest.label}; you are ${semitones} semitones from it.`
 }
+
+/** Readings older than this cannot describe the note sounding now. */
+const TUNER_MEMORY_SECONDS = 1
+/** The needle is read by eye while both hands are on the instrument. */
+const TUNER_REDRAW_MS = 100
 
 const CALIBRATION_BPM = 80
 const CALIBRATION_BEATS = 16
