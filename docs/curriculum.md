@@ -18,7 +18,7 @@ So the path is built to make each of those harder. Every take is measured, so yo
 
 **Get set up.** Before anything else, the instrument is checked. Three of the most common reasons a beginner decides they have no aptitude are a buzzing fret, an action too high to press, and a bass that is out of tune — all three feel exactly like failing, and none of them is. Then the input, then latency calibration, which is what makes every later timing judgment honest.
 
-**The plucking hand.** Finding each string by feel, and making a consistent sound. Alternating index and middle from the first session, because using one finger for everything feels easier now and caps your speed permanently.
+**The plucking hand.** Finding each string by feel, making a consistent sound, and damping the strings that are not being played. Alternating index and middle from the first session, because using one finger for everything feels easier now and caps your speed permanently. Muting is taught here rather than later because two strings ringing at once have no single pitch: the app cannot name the note, and the feedback it gives instead is about the wrong thing.
 
 **The fretting hand.** Pressing just behind the fret, one finger per fret, and a thumb position that keeps the little finger in reach. The little finger is weak, which is why it needs using rather than avoiding.
 

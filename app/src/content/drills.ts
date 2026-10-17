@@ -56,6 +56,7 @@ export const DRILLS: Exercise[] = [
     tips: [
       'Strict alternation: index, middle, index, middle. Using one finger twice in a row is the habit that caps your speed later.',
       'If the notes are uneven in volume, slow down until they are not. Evenness is the point.',
+      'Keep the thumb on the E string throughout. At this speed the strings you are not playing pick up ring from the one you are, and two strings sounding together have no clear pitch.',
     ],
   }),
 
