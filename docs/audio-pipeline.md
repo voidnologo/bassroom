@@ -82,7 +82,7 @@ The app disables all three. But constraints are requests, not commands — a bro
 | Latency measurement              | `src/audio/latency.ts`                                     |
 | Attributing a pitch to an attack | `src/engine/PitchTracker.ts`                               |
 
-The worklet is **generated** into `app/public/pitch-processor.js` by `npm run build:worklet`. AudioWorklet modules cannot resolve bare imports, so the processor has to ship as one flat file; bundling it from TypeScript rather than hand-maintaining it is what lets the algorithms live in `src/audio/dsp` where tests can reach them.
+The worklet is **generated** into `app/public/pitch-processor.js` by `npm run build:worklet`, and `npm run dev` keeps it rebuilt as its sources change. It is a build artifact rather than a module the page imports, so HMR does not reach it: a dev server without that watch serves whatever detector existed when it started, and a change to the DSP appears to have no effect at all. AudioWorklet modules cannot resolve bare imports, so the processor has to ship as one flat file; bundling it from TypeScript rather than hand-maintaining it is what lets the algorithms live in `src/audio/dsp` where tests can reach them.
 
 ## Known limits
 

@@ -5,8 +5,9 @@
   "type": "module",
   "description": "A practice coach for learning bass guitar with real-time pitch detection.",
   "scripts": {
-    "dev": "concurrently -n web,coach -c cyan,magenta \"npm:dev:web\" \"npm:dev:coach\"",
+    "dev": "concurrently -n web,coach,worklet -c cyan,magenta,yellow \"npm:dev:web\" \"npm:dev:coach\" \"npm:dev:worklet\"",
     "dev:web": "vite",
+    "dev:worklet": "vite build --config vite.worklet.config.ts --watch",
     "dev:coach": "node --env-file-if-exists=.env server/index.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
