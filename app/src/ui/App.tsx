@@ -71,8 +71,11 @@ function Shell() {
     <div className="app">
       <aside className="sidebar">
         <div className="brand">
-          <strong>Bassroom</strong>
-          <span>bass, from zero</span>
+          <img className="brand-mark" src="/icon.svg" alt="" width="30" height="30" />
+          <div className="brand-words">
+            <strong>Bassroom</strong>
+            <span>bass, from zero</span>
+          </div>
         </div>
 
         <nav className="nav" aria-label="Main">
