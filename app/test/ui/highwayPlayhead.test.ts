@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { isUnderTheLine, passedWidth } from '../../src/ui/components/NoteHighway'
+import {
+  isUnderTheLine,
+  passedWidth,
+  visibleCountInBeats,
+} from '../../src/ui/components/NoteHighway'
 import { note } from '../../src/content/authoring'
 
 const QUARTER = note('E0', 4, 1)
@@ -36,5 +40,23 @@ describe('passedWidth', () => {
 
   it('is the whole note once it has gone by, never more', () => {
     expect(passedWidth(20, 40, 100)).toBe(40)
+  })
+})
+
+describe('visibleCountInBeats', () => {
+  it('counts down from the first count-in beat to the start of the music', () => {
+    expect(visibleCountInBeats(4, -4, 8)).toEqual([-4, -3, -2, -1])
+  })
+
+  it('drops a beat once it has reached the now-line, so the countdown burns down', () => {
+    expect(visibleCountInBeats(4, -2.5, 8)).toEqual([-2, -1])
+  })
+
+  it('is empty once the music has started', () => {
+    expect(visibleCountInBeats(4, 0, 8)).toEqual([])
+  })
+
+  it('shows only what fits in the look-ahead', () => {
+    expect(visibleCountInBeats(8, -8, 3)).toEqual([-8, -7, -6, -5])
   })
 })

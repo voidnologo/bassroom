@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { barPositionAt, beatsPerBarAt, signatureAt, type MeterChange } from '../../src/music/meter'
+import {
+  barPositionAt,
+  beatsPerBarAt,
+  countInBeatsOf,
+  musicEndBeat,
+  signatureAt,
+  type MeterChange,
+} from '../../src/music/meter'
+import { note } from '../../src/content/authoring'
 import type { TimeSignature } from '../../src/music/types'
 
 const THREE_FOUR: TimeSignature = [3, 4]
@@ -65,5 +73,31 @@ describe('signatureAt and beatsPerBarAt', () => {
   it('reports the new signature from the beat it takes effect', () => {
     expect(signatureAt(33, THREE_FOUR, HYMN)).toEqual(FOUR_FOUR)
     expect(beatsPerBarAt(50, THREE_FOUR, HYMN)).toBe(4)
+  })
+})
+
+describe('musicEndBeat', () => {
+  it("is the last note's onset plus its written length, not its onset", () => {
+    const notes = [note('E0', 0, 1), note('E0', 4, 2)]
+    expect(musicEndBeat(notes)).toBe(6)
+  })
+
+  it('is the end of the music even when an earlier note is longer', () => {
+    const notes = [note('E0', 0, 4), note('E0', 4, 1)]
+    expect(musicEndBeat(notes)).toBe(5)
+  })
+
+  it('is nothing for an exercise with no notes', () => {
+    expect(musicEndBeat([])).toBe(0)
+  })
+})
+
+describe('countInBeatsOf', () => {
+  it.each([
+    ['one bar of 4/4', 1, [4, 4] as const, 4],
+    ['two bars of 4/4', 2, [4, 4] as const, 8],
+    ['one bar of 3/4', 1, [3, 4] as const, 3],
+  ])('%s', (_name, countInBars, timeSignature, expected) => {
+    expect(countInBeatsOf({ countInBars, timeSignature })).toBe(expected)
   })
 })

@@ -22,6 +22,13 @@ export interface NoteHighwayProps {
   verdictsRef: React.MutableRefObject<Map<number, Verdict>>
   beatsPerBar: number
   meterChanges?: MeterChange[]
+  /** Beats of count-in, drawn as a countdown running into the start line. */
+  countInBeats: number
+  /**
+   * Body beat the written music ends on. Passed rather than read from `notes`
+   * because a retention check hides the notes and still has to show the end.
+   */
+  endBeat: number
   /** How much music is visible ahead of the now-line. */
   beatsAhead?: number
   height?: number
@@ -45,6 +52,13 @@ const PLAYHEAD = '#ff9542'
  * resolve against, so `var(--mono)` is silently discarded and the context keeps
  * its 10px default. The stack is written out for that reason.
  */
+/** `--good` and `--bad` in the stylesheet; a canvas cannot read a custom property. */
+const START_LINE = '#46d39a'
+const END_LINE = '#f2695c'
+
+const COUNT_IN_TICK = '#2a3340'
+const COUNT_IN_TEXT = '#5c6a7e'
+
 const MONO_STACK = "'JetBrains Mono', ui-monospace, Menlo, monospace"
 const LANE_FONT = `600 12px ${MONO_STACK}`
 const NOTE_FONT = `600 13px ${MONO_STACK}`
@@ -75,6 +89,8 @@ export function NoteHighway({
   verdictsRef,
   beatsPerBar,
   meterChanges,
+  countInBeats,
+  endBeat,
   beatsAhead = 8,
   height = 190,
   running,
@@ -99,6 +115,8 @@ export function NoteHighway({
         verdicts: verdictsRef.current,
         beatsPerBar,
         meterChanges,
+        countInBeats,
+        endBeat,
         beatsAhead,
       })
       // Idle takes one paint, not sixty a second: the beat is not moving and
@@ -111,7 +129,17 @@ export function NoteHighway({
       active = false
       cancelAnimationFrame(frame)
     }
-  }, [notes, beatRef, verdictsRef, beatsPerBar, meterChanges, beatsAhead, running])
+  }, [
+    notes,
+    beatRef,
+    verdictsRef,
+    beatsPerBar,
+    meterChanges,
+    countInBeats,
+    endBeat,
+    beatsAhead,
+    running,
+  ])
 
   return (
     <canvas
@@ -119,7 +147,7 @@ export function NoteHighway({
       className="highway"
       style={{ height }}
       role="img"
-      aria-label={`${notes.length} notes on a scrolling timeline, one lane per string`}
+      aria-label={`${notes.length} notes on a scrolling timeline, one lane per string, marked where the music starts and ends`}
     />
   )
 }
@@ -156,6 +184,8 @@ interface PaintOptions {
   verdicts: Map<number, Verdict>
   beatsPerBar: number
   meterChanges?: MeterChange[]
+  countInBeats: number
+  endBeat: number
   beatsAhead: number
 }
 
@@ -184,6 +214,8 @@ function paint(context: CanvasRenderingContext2D, options: PaintOptions): void {
 
   drawLanes(context, options, geometry)
   drawBarLines(context, options, geometry)
+  drawCountIn(context, options, geometry)
+  drawBounds(context, options, geometry)
   drawNotes(context, options, geometry)
   drawNowLine(context, options, geometry)
 }
@@ -235,6 +267,91 @@ function drawBarLines(
     context.lineTo(x, height - 8)
     context.stroke()
   }
+}
+
+/**
+ * The count-in beats still to come. A tick is dropped once it reaches the
+ * now-line, so the countdown burns down to where the music starts.
+ */
+export function visibleCountInBeats(
+  countInBeats: number,
+  beat: number,
+  beatsAhead: number,
+): number[] {
+  const ticks: number[] = []
+  for (let tick = -countInBeats; tick < 0; tick++) {
+    if (tick >= beat && tick <= beat + beatsAhead) ticks.push(tick)
+  }
+  return ticks
+}
+
+function drawCountIn(
+  context: CanvasRenderingContext2D,
+  options: PaintOptions,
+  geometry: Geometry,
+): void {
+  const { beat, beatsAhead, countInBeats, height, width } = options
+  context.font = LANE_FONT
+  context.textAlign = 'center'
+  for (const tick of visibleCountInBeats(countInBeats, beat, beatsAhead)) {
+    const x = geometry.nowX + (tick - beat) * geometry.pixelsPerBeat
+    if (x >= 0 && x <= width) drawCountInTick(context, { x, count: -tick, height })
+  }
+  context.textAlign = 'left'
+}
+
+function drawCountInTick(
+  context: CanvasRenderingContext2D,
+  spec: { x: number; count: number; height: number },
+): void {
+  const { x, count, height } = spec
+  context.strokeStyle = COUNT_IN_TICK
+  context.lineWidth = 1
+  context.beginPath()
+  context.moveTo(x, 24)
+  context.lineTo(x, height - 24)
+  context.stroke()
+
+  context.fillStyle = COUNT_IN_TEXT
+  context.fillText(String(count), x, 16)
+}
+
+/** Where the music starts and where it ends, in the same space as the notes. */
+function drawBounds(
+  context: CanvasRenderingContext2D,
+  options: PaintOptions,
+  geometry: Geometry,
+): void {
+  const { beat, endBeat, height, width } = options
+  const xOf = (target: number): number => geometry.nowX + (target - beat) * geometry.pixelsPerBeat
+  drawBound(context, { x: xOf(0), label: 'start', colour: START_LINE, height, width })
+  drawBound(context, { x: xOf(endBeat), label: 'end', colour: END_LINE, height, width })
+}
+
+interface BoundSpec {
+  x: number
+  label: string
+  colour: string
+  height: number
+  width: number
+}
+
+function drawBound(context: CanvasRenderingContext2D, spec: BoundSpec): void {
+  const { x, label, colour, height, width } = spec
+  if (x < 0 || x > width) return
+
+  context.strokeStyle = colour
+  context.lineWidth = 2
+  context.beginPath()
+  context.moveTo(x, 6)
+  context.lineTo(x, height - 6)
+  context.stroke()
+
+  context.font = LANE_FONT
+  context.textAlign = 'center'
+  context.fillStyle = colour
+  context.fillText(label, x, height - 8)
+  context.textAlign = 'left'
 }
 
 function drawNotes(

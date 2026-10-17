@@ -662,6 +662,12 @@ button.list-item:hover {
   color: var(--good);
 }
 
+/* Nothing is being heard, so the slot must not borrow the out-of-tune amber. */
+.tuning-state[data-state='waiting'] {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
 /* ---- Breadcrumbs --------------------------------------------------------
    The trail that was walked. Shown only once there is somewhere to go back
    to, so top-level screens are not given a decorative one-item crumb. */

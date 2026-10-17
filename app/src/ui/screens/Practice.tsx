@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
 import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
+import { countInBeatsOf, musicEndBeat } from '../../music/meter'
 import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote } from '../../music/types'
 import type { NextAction } from '../../coach/types'
@@ -181,6 +182,8 @@ function Stage(props: StageProps) {
             verdictsRef={verdictsRef}
             beatsPerBar={exercise.timeSignature[0]}
             meterChanges={exercise.meterChanges}
+            countInBeats={countInBeatsOf(exercise)}
+            endBeat={musicEndBeat(targets)}
             running={running}
           />
         )}

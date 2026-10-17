@@ -1,6 +1,7 @@
 import type { BeatEvent, OnsetEvent, PitchFrame } from '../audio/contracts'
 
 import type { AudioInput, TimeKeeper, TimeKeeperFactory } from '../audio/contracts'
+import { countInBeatsOf } from '../music/meter'
 import type { Exercise, TargetNote } from '../music/types'
 import {
   judgePerformance,
@@ -176,7 +177,7 @@ export class PracticeSession {
     keeper.start({
       bpm,
       beatsPerBar: exercise.timeSignature[0],
-      countInBeats: exercise.countInBars * exercise.timeSignature[0],
+      countInBeats: countInBeatsOf(exercise),
     })
   }
 

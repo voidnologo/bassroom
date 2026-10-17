@@ -139,31 +139,42 @@ function Tuner() {
             : best,
         )
 
+  // Drawn whole whether or not a string is sounding: a card that is one line
+  // until a note arrives, then four, moves everything under it and never shows
+  // what the tuner is for.
   return (
     <div className="card">
       <h3>Tuner</h3>
-      {state !== 'running' ? (
-        <p className="muted small">Start listening to use the tuner.</p>
-      ) : reading === null ? (
-        <p className="muted small">Play an open string.</p>
-      ) : (
-        <div className="stack" style={{ gap: 12 }}>
-          <div className="row-between">
-            <span className="stat-value">{noteName(reading.midi)}</span>
-            <span className="mono">{formatCents(reading.cents)}</span>
-          </div>
-          <TuningBar cents={reading.cents} />
-          <p className="small muted">
-            {nearest && reading.midi === nearest.midi
-              ? `That is your ${nearest.label} string.`
-              : nearest
-                ? `Nearest open string is ${nearest.label}; you are ${Math.abs(reading.midi - nearest.midi)} semitones from it.`
-                : ''}
-          </p>
+      <div className="stack" style={{ gap: 12 }}>
+        <div className="row-between">
+          <span className="stat-value">
+            {reading === null ? NO_READING : noteName(reading.midi)}
+          </span>
+          <span className="mono">{reading === null ? NO_READING : formatCents(reading.cents)}</span>
         </div>
-      )}
+        <TuningBar cents={reading?.cents ?? null} />
+        <p className="small muted">
+          {tunerHint({ listening: state === 'running', reading, nearest })}
+        </p>
+      </div>
     </div>
   )
+}
+
+/** Placeholder in the readout, so its row keeps its height with nothing to show. */
+const NO_READING = '\u2014'
+
+function tunerHint(options: {
+  listening: boolean
+  reading: { midi: number; cents: number } | null
+  nearest: { midi: number; label: string } | null
+}): string {
+  const { listening, reading, nearest } = options
+  if (!listening) return 'Start listening to use the tuner.'
+  if (reading === null || nearest === null) return 'Play an open string.'
+  if (reading.midi === nearest.midi) return `That is your ${nearest.label} string.`
+  const semitones = Math.abs(reading.midi - nearest.midi)
+  return `Nearest open string is ${nearest.label}; you are ${semitones} semitones from it.`
 }
 
 const CALIBRATION_BPM = 80
