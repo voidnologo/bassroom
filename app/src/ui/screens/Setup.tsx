@@ -13,6 +13,7 @@ import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
 import { useDiagnosticsRecorder } from '../hooks/useDiagnosticsRecorder'
 import { Pill } from '../components/Indicators'
+import { LevelMeter } from '../components/LevelMeter'
 import { TuningBar } from '../components/TuningBar'
 
 /** Input selection, tuning, and the latency measurement every timing judgment depends on. */
@@ -108,6 +109,7 @@ export function Setup() {
         </p>
       </div>
 
+      <LevelMeter />
       <Tuner />
       <Calibration engine={engine} enabled={state === 'running'} />
     </div>

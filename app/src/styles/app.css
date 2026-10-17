@@ -673,6 +673,62 @@ button.list-item:hover {
   font-weight: 400;
 }
 
+/* ---- Input level -------------------------------------------------------
+   A peak meter for setting the gain. The band marks where a loudest attack
+   wants to sit: clear of the detector's noise gate, with headroom left. */
+
+.level-track {
+  position: relative;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.level-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* -18 to -6 dBFS on a -60..0 scale. */
+  left: 70%;
+  width: 20%;
+  background: rgba(70, 211, 154, 0.16);
+  border-left: 1px solid rgba(70, 211, 154, 0.5);
+  border-right: 1px solid rgba(70, 211, 154, 0.5);
+}
+
+.level-fill {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  border-radius: 6px;
+  background: var(--text-faint);
+  transition: width 90ms linear;
+}
+
+.level-fill[data-verdict='too-quiet'] {
+  background: var(--warn);
+}
+.level-fill[data-verdict='could-be-louder'] {
+  background: var(--accent-dim);
+}
+.level-fill[data-verdict='good'] {
+  background: var(--good);
+}
+.level-fill[data-verdict='hot'] {
+  background: var(--warn);
+}
+.level-fill[data-verdict='clipping'] {
+  background: var(--bad);
+}
+
+.level-scale {
+  display: flex;
+  justify-content: space-between;
+}
+
 /* ---- Breadcrumbs --------------------------------------------------------
    The trail that was walked. Shown only once there is somewhere to go back
    to, so top-level screens are not given a decorative one-item crumb. */
