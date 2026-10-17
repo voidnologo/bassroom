@@ -1,4 +1,4 @@
-import type { TimeSignature } from './types'
+import type { Exercise, TargetNote, TimeSignature } from './types'
 
 /**
  * Where a beat falls in the music when the meter changes partway through.
@@ -68,4 +68,20 @@ export function barPositionAt(
   const bar = barsBefore + Math.floor(into / beatsPerBar) + 1
   const beatInBar = (into % beatsPerBar) + 1
   return { bar, beatInBar: Number(beatInBar.toFixed(3)) }
+}
+
+/**
+ * The beat the written music ends on: the last note's onset plus its length.
+ *
+ * This is where the music stops, not where judging stops — a take stays open
+ * for a tail beyond it so a late final note still counts.
+ */
+export function musicEndBeat(notes: readonly TargetNote[]): number {
+  const last = notes[notes.length - 1]
+  return last ? last.startBeat + last.durationBeats : 0
+}
+
+/** Beats of count-in before the body of an exercise begins. */
+export function countInBeatsOf(exercise: Pick<Exercise, 'countInBars' | 'timeSignature'>): number {
+  return exercise.countInBars * exercise.timeSignature[0]
 }
