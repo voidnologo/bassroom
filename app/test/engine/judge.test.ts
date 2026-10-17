@@ -72,9 +72,16 @@ describe('judgePerformance', () => {
     expect(judgments[0].semitoneError).toBe(2)
   })
 
-  it('treats an unpitched pluck as a wrong pitch rather than a miss', () => {
+  it('separates a pluck it could not name from one that was the wrong note', () => {
     const judgments = judgePerformance([target(0)], [played(0, null)], 60)
-    expect(judgments[0].verdict).toBe('wrong-pitch')
+    expect(judgments[0].verdict).toBe('unpitched')
+  })
+
+  it('judges the timing of a pluck it could not name, because that part is known', () => {
+    const onBeat = judgePerformance([target(0)], [played(0, null)], 60)
+    const late = judgePerformance([target(1)], [played(0.7, null)], 60)
+    expect(onBeat[0].inTime).toBe(true)
+    expect(late[0].inTime).toBe(false)
   })
 
   it('reports a target with nothing near it as missed', () => {
@@ -253,5 +260,47 @@ describe('nothingWasPlayed', () => {
   it('is false when the player played a wrong note, which is still playing', () => {
     const judgments = judgePerformance(FOUR_QUARTERS, [played(9)], 60)
     expect(nothingWasPlayed(scorePerformance(judgments))).toBe(false)
+  })
+})
+
+describe('scoring a pluck the app could not name', () => {
+  /**
+   * The app has said it does not know which note was played, so it must not
+   * claim the note was wrong. It earns no pitch credit either: the only honest
+   * treatment is to leave it out of the pitch figure entirely.
+   */
+  const twoNamedTwoNot = () =>
+    judgePerformance(FOUR_QUARTERS, [played(0), played(1), played(2, null), played(3, null)], 60)
+
+  it('leaves it out of pitch accuracy rather than counting it wrong', () => {
+    expect(scorePerformance(twoNamedTwoNot()).pitchAccuracy).toBe(1)
+  })
+
+  it('counts it against nothing, where a wrong note does count against pitch', () => {
+    const wrongNotes = judgePerformance(
+      FOUR_QUARTERS,
+      [played(0), played(1), played(2, D2), played(3, D2)],
+      60,
+    )
+    expect(scorePerformance(wrongNotes).pitchAccuracy).toBe(0.5)
+  })
+
+  it('reports how many it could not name, so the cause is visible', () => {
+    expect(scorePerformance(twoNamedTwoNot()).unnamedNotes).toBe(2)
+  })
+
+  it('still credits the timing of every note that was heard', () => {
+    expect(scorePerformance(twoNamedTwoNot()).timingAccuracy).toBe(1)
+  })
+
+  it('scores a take it could name nothing in on timing alone', () => {
+    const noneNamed = judgePerformance(
+      FOUR_QUARTERS,
+      FOUR_QUARTERS.map((_, index) => played(index, null)),
+      60,
+    )
+    const score = scorePerformance(noneNamed)
+    expect(score.timingAccuracy).toBe(1)
+    expect(score.overall).toBe(100)
   })
 })

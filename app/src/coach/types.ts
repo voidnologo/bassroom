@@ -10,7 +10,7 @@ import type { DetectionDetail, PerformanceScore, Verdict } from '../engine/judge
  */
 
 /** Bumped whenever the telemetry shape changes. Stored with every record. */
-export const TELEMETRY_SCHEMA_VERSION = 2
+export const TELEMETRY_SCHEMA_VERSION = 3
 
 export interface NoteTelemetry {
   /** Index into the exercise's note list. */

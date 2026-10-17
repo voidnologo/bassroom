@@ -50,6 +50,7 @@ const VERDICT_LABELS: Record<Verdict, string> = {
   early: 'early',
   late: 'late',
   'wrong-pitch': 'wrong note',
+  unpitched: 'heard, note unclear',
   missed: 'not played',
   extra: 'extra note',
 }

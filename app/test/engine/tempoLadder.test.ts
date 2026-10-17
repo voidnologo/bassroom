@@ -20,6 +20,7 @@ function score(overall: number): PerformanceScore {
     extraNotes: 0,
     missedNotes: 0,
     wrongPitchNotes: 0,
+    unnamedNotes: 0,
     totalTargets: 8,
     overall,
   }

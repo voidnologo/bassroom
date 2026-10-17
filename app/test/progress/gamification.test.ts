@@ -38,6 +38,7 @@ function attempt(overrides: Partial<Attempt> = {}): Attempt {
       extraNotes: 0,
       missedNotes: 0,
       wrongPitchNotes: 1,
+      unnamedNotes: 0,
       totalTargets: 16,
       overall: 85,
     },

@@ -69,6 +69,8 @@ const VERDICT_COLOURS: Record<Verdict, string> = {
   early: '#f2c14e',
   late: '#f2c14e',
   'wrong-pitch': '#f2695c',
+  // Not a verdict on the playing, so neither the good green nor the bad red.
+  unpitched: '#8d9bb0',
   missed: '#5c6a7e',
   extra: '#f2695c',
 }
