@@ -14,6 +14,7 @@ import type { Exercise } from '../../src/music/types'
 import { FakeAudioEngine } from '../support/fakeEngine'
 import { ALL_EXERCISES } from '../../src/content/curriculum'
 import { createExerciseProgress } from '../../src/progress/reducer'
+import { addDays, toIsoDate } from '../../src/progress/srs'
 import type { ProgressSnapshot } from '../../src/progress/types'
 
 /**
@@ -42,6 +43,19 @@ function withEverythingUnlocked(): ProgressSnapshot {
   const snapshot = createSnapshot(now)
   for (const exercise of ALL_EXERCISES) {
     snapshot.exercises[exercise.id] = { ...createExerciseProgress(exercise, now), bestStars: 1 }
+  }
+  return snapshot
+}
+
+/** A snapshot where one exercise's review has already come due. */
+function withReviewDue(exerciseId: string): ProgressSnapshot {
+  const now = new Date()
+  const snapshot = createSnapshot(now)
+  const progress = createExerciseProgress(exerciseById(exerciseId)!, now)
+  snapshot.exercises[exerciseId] = {
+    ...progress,
+    bestStars: 1,
+    review: { ...progress.review, intervalDays: 2, dueOn: toIsoDate(addDays(now, -1)) },
   }
   return snapshot
 }
@@ -309,6 +323,17 @@ describe('the chart on the practice screen', () => {
 })
 
 describe('the retention check toggle', () => {
+  it('starts off even when the exercise is due for review', async () => {
+    useProgressStore.setState({ snapshot: withReviewDue('open-strings-quarter') })
+    await openPractice('open-strings-quarter')
+    expect(screen.getByRole('checkbox', { name: /retention check/i })).not.toBeChecked()
+  })
+
+  /**
+   * A take moves the review schedule, which is what the toggle defaults from.
+   * If finishing one overwrites the learner's choice, the next take silently
+   * measures something other than what they asked for.
+   */
   it('stays off across a completed take', async () => {
     const { user, engine, exercise } = await openPractice('open-strings-quarter')
     const toggle = () => screen.getByRole('checkbox', { name: /retention check/i })

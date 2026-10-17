@@ -20,7 +20,6 @@ import { usePracticeTake, type TakeState } from '../hooks/usePracticeTake'
 import { TabChart } from '../components/TabChart'
 import { barsFromNotes } from '../../music/tab'
 import { useOverride } from '../hooks/useOverride'
-import { isReviewDue } from '../../progress/srs'
 import type { Navigate } from '../navigation'
 
 /**
@@ -35,10 +34,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
   const progress = useMemo(() => progressFor(snapshot, exercise, new Date()), [snapshot, exercise])
   const [bpm, setBpm] = useOverride(exercise.id, progress.ladder.currentBpm)
 
-  // A review that is due defaults to a probe: measuring what has been retained
-  // is only honest when the cues that inflate it are switched off.
-  const dueForReview = isReviewDue(progress.review, new Date())
-  const [isProbe, setIsProbe] = useOverride(exercise.id, dueForReview)
+  const [isProbe, setIsProbe] = useOverride(exercise.id, false)
 
   const { take, targets, beatRef, verdictsRef, start, stop, submitEstimate, ready } =
     usePracticeTake(exercise, bpm, { isProbe, askForEstimate: exercise.mode === 'play-along' })
