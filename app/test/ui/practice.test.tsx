@@ -102,6 +102,13 @@ describe('the practice screen with the input running', () => {
     expect(screen.getByRole('button', { name: /start take/i })).toBeInTheDocument()
   })
 
+  it('puts the start button above the neck diagram, not below the whole stage', async () => {
+    await openPractice()
+    const start = screen.getByRole('button', { name: /start take/i })
+    const neck = document.querySelector('svg[role="img"]')!
+    expect(start.compareDocumentPosition(neck) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('starts in the count-in', async () => {
     const { user } = await openPractice()
     await user.click(screen.getByRole('button', { name: /start take/i }))

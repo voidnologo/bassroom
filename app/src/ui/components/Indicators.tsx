@@ -122,11 +122,13 @@ export function BeatDots({ beatsPerBar, current }: { beatsPerBar: number; curren
 
 export function Pill({
   tone = 'plain',
+  className,
   children,
 }: {
   tone?: 'plain' | 'good' | 'warn' | 'bad'
+  className?: string
   children: React.ReactNode
 }) {
-  const className = tone === 'plain' ? 'pill' : `pill pill-${tone}`
-  return <span className={className}>{children}</span>
+  const classes = ['pill', tone === 'plain' ? null : `pill-${tone}`, className]
+  return <span className={classes.filter(Boolean).join(' ')}>{children}</span>
 }

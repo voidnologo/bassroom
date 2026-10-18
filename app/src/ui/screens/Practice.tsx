@@ -174,6 +174,8 @@ function Stage(props: StageProps) {
         promptCount={targets.length}
       />
 
+      <TransportBar {...props} running={running} />
+
       <Fretboard {...fretboardPropsFor({ prompt, position, showCues, take, targets })} />
 
       {/* Flush against the highway rather than below the fold: the two are one
@@ -201,8 +203,6 @@ function Stage(props: StageProps) {
           showCues={showCues}
         />
       </div>
-
-      <TransportBar {...props} running={running} />
     </div>
   )
 }
@@ -230,7 +230,9 @@ function TransportBar({
           {running ? 'Stop' : 'Start take'}
         </button>
         <span className="tiny faint">space</span>
-        <Pill tone={take.phase === 'count-in' ? 'warn' : 'plain'}>{phaseLabel(take.phase)}</Pill>
+        <Pill className="pill-phase" tone={take.phase === 'count-in' ? 'warn' : 'plain'}>
+          {phaseLabel(take.phase)}
+        </Pill>
         <ProbeToggle checked={isProbe} disabled={running} onChange={onProbe} />
       </div>
 
