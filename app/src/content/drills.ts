@@ -26,7 +26,7 @@ export const DRILLS: Exercise[] = [
     ),
     targetBpm: 60,
     tips: [
-      'Rest your thumb on the pickup. It anchors the hand and mutes the strings you are not playing.',
+      'The pickup is the bar sitting under the strings that senses them. Resting a thumb on it steadies the hand but damps nothing, so rest the thumb on the E string instead: that is what keeps it quiet while you play the others.',
       'Pluck with the pad of the finger, not the tip, and pull slightly toward your palm rather than up.',
     ],
   }),

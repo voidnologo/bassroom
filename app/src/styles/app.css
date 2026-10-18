@@ -729,6 +729,43 @@ button.list-item:hover {
   justify-content: space-between;
 }
 
+/* ---- Fretboard and note highway ----------------------------------------
+   Both carry classes that had no rule here, so their colours came from
+   whatever the browser defaults to rather than from the palette above. The
+   positions are set in the SVG itself and are deliberately left alone. */
+
+.fretboard,
+.highway {
+  display: block;
+  width: 100%;
+}
+
+.fretboard text {
+  font-family: var(--mono);
+  fill: var(--text-muted);
+}
+
+.fret-number {
+  font-size: 13px;
+  fill: var(--text-faint);
+}
+
+.string-label {
+  font-size: 13px;
+}
+
+.heard-label {
+  font-size: 14px;
+  fill: var(--text);
+}
+
+/* Sits inside the target marker, which is filled with --good or --accent. */
+.target-marker {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--bg-sunken);
+}
+
 /* ---- Breadcrumbs --------------------------------------------------------
    The trail that was walked. Shown only once there is somewhere to go back
    to, so top-level screens are not given a decorative one-item crumb. */

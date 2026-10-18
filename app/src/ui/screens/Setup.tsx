@@ -54,9 +54,10 @@ export function Setup() {
         <div>
           <h1>Setup</h1>
           <p>
-            Plug the bass into input 1 on the interface and raise the gain until the halo ring glows
-            green when you play hard. If it flashes red the signal is clipping, and a clipped signal
-            is harder to read a pitch from, not easier.
+            Plug the bass into the instrument input on your interface. Play as hard as you normally
+            would, and turn the interface's gain knob up until the level below sits in the green
+            band. Leave your bass's own volume controls all the way up: turning them down changes
+            the tone as well as the level, so the gain knob is the one to set.
           </p>
         </div>
       </div>
@@ -216,7 +217,7 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
   const metronomeRef = useRef<TimeKeeper | null>(null)
 
   const stopListeningRef = useRef<(() => void) | null>(null)
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const timeoutRef = useRef<number | null>(null)
 
   /** Idempotent: both the onset handler and the timeout can reach it. */
   const finish = useCallback(() => {
@@ -225,7 +226,7 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
     metronomeRef.current = null
     stopListeningRef.current?.()
     stopListeningRef.current = null
-    if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current)
     timeoutRef.current = null
     setRunning(false)
     const summary = summarizeCalibration(samplesRef.current)
@@ -246,14 +247,14 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
     })
   }, [diagnostics])
 
-  // Leaving the screen mid-measurement used to leave the click track playing
-  // and an onset listener running on whatever screen you landed on.
+  // A measurement abandoned by navigating away would otherwise leave the click
+  // track playing and an onset listener running on the next screen.
   useEffect(() => {
     return () => {
       metronomeRef.current?.dispose()
       metronomeRef.current = null
       stopListeningRef.current?.()
-      if (timeoutRef.current !== null) clearTimeout(timeoutRef.current)
+      if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current)
     }
   }, [])
 
@@ -286,8 +287,9 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
       })
       setTaps(samplesRef.current.length)
     })
+    stopListeningRef.current = off
 
-    window.setTimeout(
+    timeoutRef.current = window.setTimeout(
       () => {
         off()
         finish()
