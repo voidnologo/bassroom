@@ -18,7 +18,9 @@
 
   --text: #e7edf5;
   --text-muted: #8d9bb0;
-  --text-faint: #5c6a7e;
+  /* Most of the app's small print is this colour, so it has to clear WCAG AA
+     (4.5:1) against --bg, --bg-raised and --bg-sunken alike. */
+  --text-faint: #78879c;
 
   --accent: #4cc2ff;
   --accent-dim: #1d6a94;
