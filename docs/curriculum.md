@@ -20,6 +20,8 @@ So the path is built to make each of those harder. Every take is measured, so yo
 
 **The plucking hand.** Finding each string by feel, making a consistent sound, and damping the strings that are not being played. Alternating index and middle from the first session, because using one finger for everything feels easier now and caps your speed permanently. Muting is taught here rather than later because two strings ringing at once have no single pitch: the app cannot name the note, and the feedback it gives instead is about the wrong thing.
 
+**Reading tab.** Tablature, taught on the four open strings and nothing else. It arrives here rather than later because it is the notation both target songs are written in, and because the app puts a tab chart under every exercise from the first one onward — a learner who cannot read it is being shown a notation nobody has explained. Teaching it on open strings means the only new thing is the reading; the hands already know how to make these four sounds.
+
 **The fretting hand.** Pressing just behind the fret, one finger per fret, and a thumb position that keeps the little finger in reach. The little finger is weak, which is why it needs using rather than avoiding.
 
 ### Fundamentals

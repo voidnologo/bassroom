@@ -172,7 +172,7 @@ export const DRILLS: Exercise[] = [
     id: 'tab-open-strings',
     title: 'Read the open strings',
     instructions:
-      'Four zeros, one per bar, lowest line to highest. A zero means the open string for that line.',
+      'Four zeros, one per bar, reading from the bottom line of the tab upward: E, A, D, G. A zero means play that string open.',
     skills: ['reading-tab', 'plucking-open'],
     notes: [note('E0', 0, 4), note('A0', 4, 4), note('D0', 8, 4), note('G0', 12, 4)],
     targetBpm: 60,
