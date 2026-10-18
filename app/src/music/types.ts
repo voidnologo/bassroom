@@ -1,4 +1,4 @@
-import type { Position } from './fretboard'
+import type { Finger, Position } from './fretboard'
 import type { MeterChange } from './meter'
 
 export type SkillId =
@@ -38,7 +38,7 @@ export interface TargetNote {
   /** Written length in beats. Drives display, and rest and muting drills. */
   durationBeats: number
   /** Fretting-hand finger this lesson is teaching for the note. */
-  finger?: 1 | 2 | 3 | 4
+  finger?: Finger
   /** Lyric or counting syllable shown beneath the note. */
   label?: string
 }

@@ -6,6 +6,7 @@ import {
   STRING_LABELS,
   midiAt,
   positionsFor,
+  type Finger,
   type Position,
 } from '../../music/fretboard'
 import { noteName } from '../../music/notes'
@@ -22,7 +23,7 @@ export interface FretboardProps {
   /** Where the exercise wants the next note played. */
   target?: Position | null
   /** Fretting finger to suggest, drawn inside the target marker. */
-  finger?: 1 | 2 | 3 | 4 | null
+  finger?: Finger | null
   detectedMidi?: number | null
   detectedCents?: number
   firstFret?: number
@@ -217,7 +218,7 @@ function TargetMarker({
   correct,
 }: {
   target: Position
-  finger: 1 | 2 | 3 | 4 | null
+  finger: Finger | null
   layout: Layout
   correct: boolean
 }) {

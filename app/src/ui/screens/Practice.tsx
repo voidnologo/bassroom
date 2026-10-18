@@ -1,6 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
-import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
+import {
+  describePosition,
+  fingerName,
+  preferredPosition,
+  type Position,
+} from '../../music/fretboard'
 import { countInBeatsOf, isTimed, musicEndBeat } from '../../music/meter'
 import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote, TimedExercise } from '../../music/types'
@@ -547,7 +552,7 @@ function positionOf(prompt: TargetNote | undefined): Position | null {
 
 function whereText(position: Position | null, prompt: TargetNote | undefined): string {
   if (!position) return 'ready'
-  const finger = prompt?.finger ? ` · finger ${prompt.finger}` : ''
+  const finger = prompt?.finger ? ` · ${fingerName(prompt.finger)} finger` : ''
   return `${describePosition(position)}${finger}`
 }
 
