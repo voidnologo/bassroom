@@ -66,6 +66,7 @@ export const LESSONS: Lesson[] = [
       'Press just behind the fret. Further back and the note buzzes; on top of the fret it chokes. Just behind takes the least effort and gives the cleanest sound.',
       'Thumb flat on the back of the neck, roughly opposite the second finger. Hooking it over the top feels natural and takes the little finger out of reach.',
       'One finger per fret: index, middle, ring and little finger cover four consecutive frets without the hand moving. This is the position everything else is built on.',
+      'Those four are numbered 1 to 4 from the index, and the thumb has no number: a 3 inside the marker on the neck diagram means the ring finger. If you have played a valved instrument, the number names the finger here, not anything it presses.',
       'Your little finger is weak. That is normal and it is why it needs using, not avoiding.',
     ],
     exerciseIds: [

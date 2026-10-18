@@ -3,6 +3,7 @@ import {
   FRET_COUNT,
   STANDARD_TUNING,
   describePosition,
+  fingerName,
   isPlayable,
   midiAt,
   openStrings,
@@ -119,6 +120,17 @@ describe('suggestedFinger', () => {
   it('has no finger for a note outside the four-fret span', () => {
     expect(suggestedFinger({ string: 0, fret: 6 }, 1)).toBeNull()
     expect(suggestedFinger({ string: 0, fret: 1 }, 3)).toBeNull()
+  })
+})
+
+describe('fingerName', () => {
+  it.each([
+    [1, 'index'],
+    [2, 'middle'],
+    [3, 'ring'],
+    [4, 'little'],
+  ] as const)('names finger %i as the %s finger', (finger, expected) => {
+    expect(fingerName(finger)).toBe(expected)
   })
 })
 

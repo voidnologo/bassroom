@@ -79,15 +79,29 @@ export function preferredPosition(
   return candidates.reduce((best, position) => (score(position) < score(best) ? position : best))
 }
 
+/** Fretting-hand fingers, numbered from the index outward. The thumb has none. */
+export type Finger = 1 | 2 | 3 | 4
+
+const FINGER_NAMES: Record<Finger, string> = {
+  1: 'index',
+  2: 'middle',
+  3: 'ring',
+  4: 'little',
+}
+
+export function fingerName(finger: Finger): string {
+  return FINGER_NAMES[finger]
+}
+
 /**
  * One-finger-per-fret assignment relative to where the index finger sits.
  * Returns null for open strings and for notes outside the four-fret span.
  */
-export function suggestedFinger(position: Position, indexFret: number): 1 | 2 | 3 | 4 | null {
+export function suggestedFinger(position: Position, indexFret: number): Finger | null {
   if (position.fret === 0) return null
   const offset = position.fret - indexFret
   if (offset < 0 || offset > 3) return null
-  return (offset + 1) as 1 | 2 | 3 | 4
+  return (offset + 1) as Finger
 }
 
 export function describePosition(position: Position): string {
