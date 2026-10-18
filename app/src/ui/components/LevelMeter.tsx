@@ -111,6 +111,12 @@ export function LevelMeter() {
   return (
     <div className="card">
       <h3>Input level</h3>
+      <p className="small muted" style={{ marginTop: 0 }}>
+        dBFS counts down from 0, the loudest sound a recording can hold, so everything you play is a
+        negative number. What is measured here is the attack: the instant of the pluck, before the
+        note settles. It is the loudest part of a bass note, and the part that decides whether the
+        gain is set right.
+      </p>
       <div className="stack" style={{ gap: 12 }}>
         <div className="row-between">
           <span className="stat-value">{peakDb === null ? '—' : `${peakDb.toFixed(1)}`}</span>
@@ -130,6 +136,12 @@ export function LevelMeter() {
           <span>good</span>
           <span>0</span>
         </div>
+        <p className="small muted" style={{ margin: 0 }}>
+          Too far down and quiet plucks sink into the noise floor, the hiss and hum that is there
+          when you are not playing. Too far up and there is no headroom, the room left below 0, so a
+          hard pluck clips: the top of the wave is squared off, and a squared-off wave is harder to
+          read a pitch from, not easier.
+        </p>
         <p className="small muted" style={{ margin: 0 }}>
           {listening ? reading.advice : 'Start listening to set your gain.'}
         </p>
