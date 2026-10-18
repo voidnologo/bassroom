@@ -20,10 +20,7 @@ Two findings from that review were checked and did **not** hold, recorded here s
 
 ## Interface
 
-- **The primary action on the practice screen is below the fold** on a 13-inch laptop: Start sits under the fretboard, highway and chart. Move the transport bar up, under the target note.
-- **Things move mid-take.** The phase pill's text changes four times per take, shifting the retention checkbox beside it; the 3rem note name changes width per note, shifting the text under it. Both want a fixed width.
 - **The result and coach cards vanish when the next take starts**, collapsing the page height and throwing the scroll position.
-- **`--text-faint` (`#5c6a7e`) fails WCAG AA** at roughly 3.1–3.5:1 against all three backgrounds, and it is the colour of most of the small print. One token change fixes every failing pair.
 - **Colour is the only signal in four places** (RC7, which the stylesheet's own header claims to honour): right vs wrong on the fretboard is green vs red with identical shape; the target marker is green vs blue; `early` and `late` verdict chips are pixel-identical. The highway already solves this correctly with a lane offset — the strip should match it.
 - **Focus is invisible on primary buttons**: the ring is `--accent` on a button filled with `--accent`. Needs its own token.
 - **`.btn-primary` is used as a selected-tab style** on Songs and Settings, so the loudest things on those screens are selection states rather than actions.
@@ -38,12 +35,10 @@ The reader this is written for has years of trumpet behind them: fluent at readi
 
 - **Tablature is used from the first exercise and taught in the fifth lesson.** Every exercise with bars renders a tab chart, and the Songs screen is reachable on day one, but `reading-tab` sits behind three other lessons. Move it into the first unit, and give `TabChart` a legend that is always there. The strongest sentence for this reader is already written and buried seventh in that lesson: that printed tab usually cannot show note length and this app's charts do.
 - **Connect tab to the staff**, which nothing currently does: a staff says which note and not where; tab says where and not which. On a bass the same pitch exists in three or four places, so tab is specifying something a staff cannot.
-- **Fretting-hand finger numbers are a false friend.** The practice screen prints "finger 3" and the neck diagram draws a bare 1-4, and nothing says these are index, middle, ring, little. To a trumpet player 1, 2, 3 are valves — a plausible and wrong reading. Say it once in the fretting-hand briefing, and consider naming the finger in words on screen.
 - **Slash chords are an instruction to the bass and are presented as context.** The hymn's chart carries `G/B` and `F/C`; the reading-tab briefing says a chord symbol "is context rather than instruction", which is exactly wrong for these — the letter after the slash is the note the bass is being told to play.
 - **Instrument anatomy is assumed**: fret, truss rod, action, pickup, position, open string, floating thumb. Fret numbering never states that it counts from the tuning pegs.
 - **Why a bass plays roots and fifths** is asserted and never explained. The bass is the bottom of the chord, so the note chosen is what tells a listener which chord they are hearing; a root and fifth state a chord without committing to major or minor. That is the job, and it is what makes one note per bar a complete part.
 - **Intonation on a fretted instrument** has no counterpart in wind playing. The fret sets the pitch, so flat is not available — but pressing harder than the note needs stretches the string sharp.
-- **Audio vocabulary** is the one place this reader is stranded: gain, clipping, noise floor, headroom, attack, latency, direct monitoring, dBFS, cents. Teach each once where it first appears. Cents wants anchoring to something known: 100 cents is one fret.
 
 ### Stop explaining what they already know
 
