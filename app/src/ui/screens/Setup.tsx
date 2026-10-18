@@ -8,7 +8,7 @@ import {
   type CalibrationSample,
 } from '../../audio/latency'
 import { openStrings } from '../../music/fretboard'
-import { noteName } from '../../music/notes'
+import { IN_TUNE_CENTS, noteName } from '../../music/notes'
 import { useAudio } from '../../state/AudioProvider'
 import { useProgressStore } from '../../state/progressStore'
 import { useDiagnosticsRecorder } from '../hooks/useDiagnosticsRecorder'
@@ -54,10 +54,12 @@ export function Setup() {
         <div>
           <h1>Setup</h1>
           <p>
-            Plug the bass into the instrument input on your interface. Play as hard as you normally
-            would, and turn the interface's gain knob up until the level below sits in the green
-            band. Leave your bass's own volume controls all the way up: turning them down changes
-            the tone as well as the level, so the gain knob is the one to set.
+            Plug the bass into the instrument input on your interface. Gain is the knob that sets
+            how much the interface amplifies the bass on its way into the computer; it changes what
+            the app hears, not how hard you are playing. Play as hard as you normally would, and
+            turn the gain up until the level below sits in the green band. Leave your bass&apos;s
+            own volume controls all the way up: turning them down changes the tone as well as the
+            level, so the gain knob is the one to set.
           </p>
         </div>
       </div>
@@ -107,8 +109,10 @@ export function Setup() {
           </p>
         )}
         <p className="small muted" style={{ marginTop: 12 }}>
-          Monitor yourself through the interface&apos;s own direct monitoring rather than through
-          the browser. It is lower latency, and it keeps speaker output from reaching the input.
+          Listen to yourself through the interface&apos;s own direct monitoring rather than through
+          the browser. Direct monitoring is a switch on the interface that sends the bass straight
+          to your headphones without the trip through the computer and back, so you hear yourself as
+          you play. It also keeps speaker output from reaching the input.
         </p>
       </div>
 
@@ -166,6 +170,11 @@ function Tuner() {
         <TuningBar cents={reading?.cents ?? null} />
         <p className="small muted">
           {tunerHint({ listening: state === 'running', reading, nearest })}
+        </p>
+        <p className="small muted" style={{ margin: 0 }}>
+          The second number is cents: hundredths of a semitone, so one fret is 100 cents. Inside
+          &plusmn;{IN_TUNE_CENTS} the string counts as in tune, which is far finer than the distance
+          you can hear between two notes played one after the other.
         </p>
       </div>
     </div>
@@ -301,6 +310,11 @@ function Calibration({ engine, enabled }: { engine: AudioEngineApi; enabled: boo
   return (
     <div className="card">
       <h3>Latency</h3>
+      <p className="small muted">
+        Latency is the delay between the string moving and this app hearing it. The interface, the
+        driver and the browser each add a few milliseconds, and the total is the same every time, so
+        it can be measured once and subtracted from every judgment afterwards.
+      </p>
       <p className="small muted">
         Play the open E string on every click for four bars, as exactly on the beat as you can. The
         app measures how far behind the click your notes arrive and corrects for it from then on.
