@@ -318,6 +318,13 @@ button {
   color: var(--text-muted);
 }
 
+/* The phase label changes four times a take. Without a reserved width the
+   retention checkbox beside it steps sideways on every change. */
+.pill-phase {
+  min-width: 96px;
+  justify-content: center;
+}
+
 .pill-good {
   color: var(--good);
   border-color: #1c5a44;
@@ -471,6 +478,9 @@ button.list-item:hover {
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1;
+  /* Wide enough for the widest note name, so the position text beside it does
+     not move as the exercise steps from E1 to A#2. */
+  min-width: 2.2em;
 }
 .target-note .where {
   color: var(--text-muted);
