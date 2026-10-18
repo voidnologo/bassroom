@@ -44,7 +44,7 @@ export const LESSONS: Lesson[] = [
     title: 'The plucking hand',
     summary: 'Find each string by feel, and make a sound with a consistent tone.',
     briefing: [
-      'Rest your thumb on the E string, not on the pickup. The pickup anchors the hand but damps nothing; the thumb on the string is what stops it ringing while you play something else.',
+      'The pickup is the bar under the strings that senses them, and it is the obvious place to park a thumb. Rest the thumb on the E string instead. The pickup steadies the hand but damps nothing; the thumb on the string is what stops it ringing while you play something else.',
       'A string left to ring is not a small thing. Two strings sounding at once have no single pitch, so the app cannot name the note you played, and neither can a listener.',
       'Pluck with the pad of the finger, about halfway between the first joint and the tip, and pull slightly toward your palm rather than straight up.',
       'Alternate index and middle from the very first session. Using one finger for everything feels easier now and caps your speed permanently.',
