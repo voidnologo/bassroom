@@ -120,6 +120,12 @@ describe('the practice screen with the input running', () => {
     expect(screen.getByLabelText('Tempo')).toBeDisabled()
   })
 
+  it('keeps the tempo and the beat dots on an exercise that is played to a clock', async () => {
+    await openPractice()
+    expect(screen.getByLabelText('Tempo')).toBeInTheDocument()
+    expect(document.querySelector('.beat-dots')).not.toBeNull()
+  })
+
   it('asks the player to read their own timing before showing the result', async () => {
     const { engine, user, exercise } = await openPractice()
     await user.click(screen.getByRole('button', { name: /start take/i }))
@@ -247,35 +253,137 @@ describe('the practice screen with the input running', () => {
   })
 })
 
+/** The drill reshuffles each take, so a test has to read what is being asked. */
+function promptedNote(): string {
+  return document.querySelector('.target-note .name')?.textContent ?? ''
+}
+
+async function answerPrompt(engine: FakeAudioEngine, atSecond: number): Promise<string> {
+  const asked = promptedNote()
+  await act(async () => {
+    for (let i = 0; i < 4; i++) {
+      engine.emitPitch({ time: atSecond + i * 0.02, midi: parseNote(asked) })
+    }
+  })
+  return asked
+}
+
+/** Tab is drawn thinnest string on top, so row 0 is the G string. */
+const ROW_OPEN_STRINGS = ['G2', 'D2', 'A1', 'E1']
+
+function chartedStrings(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('[data-start-beat]')].map((mark) => {
+    const row = /calc\((\d+)/.exec(mark.style.top)?.[1]
+    return ROW_OPEN_STRINGS[Number(row)]
+  })
+}
+
+async function playEveryPrompt(engine: FakeAudioEngine): Promise<void> {
+  const exercise = exerciseById('open-string-find')!
+  for (let index = 0; index < exercise.notes.length; index++) {
+    await answerPrompt(engine, index)
+  }
+}
+
 describe('a call-and-response exercise', () => {
-  it('advances through prompts as notes are recognised', async () => {
+  it('moves to a different string once the one on screen is recognised', async () => {
     const { engine, user } = await openPractice('open-string-find')
     await user.click(screen.getByRole('button', { name: /start take/i }))
 
-    await act(async () => {
-      for (let i = 0; i < 4; i++) engine.emitPitch({ time: 1 + i * 0.02, midi: parseNote('E1') })
-    })
-    await waitFor(() =>
-      expect(document.querySelector('.target-note .name')).toHaveTextContent('A1'),
-    )
+    const first = await answerPrompt(engine, 1)
+    await waitFor(() => expect(promptedNote()).not.toBe(first))
+  })
+
+  it('moves the chart playhead with the prompt, so a take with no clock still shows where it is', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await answerPrompt(engine, 1)
+
+    await waitFor(() => {
+      const marks = [...document.querySelectorAll<HTMLElement>('[data-start-beat]')]
+      expect(marks.map((mark) => mark.dataset.state)).toEqual([
+        'played',
+        'playing',
+        'ahead',
+        'ahead',
+        'ahead',
+        'ahead',
+        'ahead',
+        'ahead',
+      ])
+    }, WAIT)
+  })
+
+  it('charts the strings it is asking for, in the order it asks for them', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+
+    const asked: string[] = []
+    for (let index = 0; index < 8; index++) asked.push(await answerPrompt(engine, index))
+    expect(asked).toEqual(chartedStrings())
+  })
+
+  it('does not ask for the same string twice running, which a ringing one would answer', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+
+    const asked: string[] = []
+    for (let index = 0; index < 8; index++) asked.push(await answerPrompt(engine, index))
+    expect(asked.filter((name, index) => index > 0 && name === asked[index - 1])).toEqual([])
   })
 
   it('does not ask for a timing estimate, because there is no clock', async () => {
     const { engine, user } = await openPractice('open-string-find')
     await user.click(screen.getByRole('button', { name: /start take/i }))
-
-    const prompts = ['E1', 'A1', 'D2', 'G2', 'A1', 'E1', 'G2', 'D2'].map(parseNote)
-    await act(async () => {
-      prompts.forEach((midi, index) => {
-        for (let i = 0; i < 4; i++) engine.emitPitch({ time: index + i * 0.02, midi })
-      })
-    })
+    await playEveryPrompt(engine)
 
     await waitFor(
       () => expect(screen.getByRole('heading', { name: 'That take' })).toBeInTheDocument(),
       WAIT,
     )
     expect(screen.queryByText(/how was your timing/i)).toBeNull()
+  })
+
+  it('offers no tempo to set, because nothing about the take is played to one', async () => {
+    await openPractice('open-string-find')
+    expect(screen.queryByLabelText(/tempo/i)).toBeNull()
+    expect(screen.queryByText(/bpm/i)).toBeNull()
+  })
+
+  it('counts the strings left rather than beats of a bar nothing is counting', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    expect(document.querySelector('.beat-dots')).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    expect(screen.getByText('note 1 of 8')).toBeInTheDocument()
+    await answerPrompt(engine, 1)
+    await waitFor(() => expect(screen.getByText('note 2 of 8')).toBeInTheDocument())
+  })
+
+  it('reports no timing figure for a take it never timed', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await playEveryPrompt(engine)
+
+    await waitFor(
+      () => expect(screen.getByRole('heading', { name: 'That take' })).toBeInTheDocument(),
+      WAIT,
+    )
+    expect(screen.getByText('Right notes')).toBeInTheDocument()
+    expect(screen.queryByText('In time')).toBeNull()
+    expect(screen.queryByText('Steadiness')).toBeNull()
+    expect(screen.queryByText(/on the beat/i)).toBeNull()
+  })
+
+  it('stars a clean take, which gating on tempo would never have let it earn', async () => {
+    const { engine, user } = await openPractice('open-string-find')
+    await user.click(screen.getByRole('button', { name: /start take/i }))
+    await playEveryPrompt(engine)
+
+    await waitFor(() => {
+      const progress = useProgressStore.getState().snapshot.exercises['open-string-find']
+      expect(progress?.bestStars).toBe(3)
+    }, WAIT)
   })
 })
 

@@ -7,6 +7,7 @@ import {
 } from '../engine/tempoLadder'
 import { notesPlayed, nothingWasPlayed } from '../engine/judge'
 import type { PerformanceScore } from '../engine/judge'
+import { isTimed } from '../music/meter'
 import type { Exercise } from '../music/types'
 import { newlyEarnedBadges, recordPractice, xpForAttempt, type XpBreakdown } from './gamification'
 import { createReviewState, daysBetween, isReviewDue, scheduleNextReview, toIsoDate } from './srs'
@@ -138,7 +139,7 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
   const attempt = buildAttempt(input, stars, unplayed)
 
   const previous = progressFor(snapshot, exercise, now)
-  const ladder = discounted ? holdLadder(previous) : advanceLadder(previous.ladder, score)
+  const ladder = ladderAfter(exercise, previous, score, discounted)
   const updatedExercise: ExerciseProgress = {
     ...previous,
     attempts: previous.attempts + 1,
@@ -211,12 +212,24 @@ const NO_XP: XpBreakdown = {
   total: 0,
 }
 
-/** An abandoned take leaves the ladder exactly where it was. */
-function holdLadder(previous: ExerciseProgress): LadderOutcome {
-  return {
-    next: previous.ladder,
-    message: 'Stopped early. Nothing recorded against this one.',
-  }
+/**
+ * An abandoned take, and a take with no clock, leave the ladder where it is. The ladder trades
+ * accuracy for tempo, and an untimed drill has no tempo to trade for, so
+ * walking it would move a number nothing about the drill depends on.
+ */
+function ladderAfter(
+  exercise: Exercise,
+  previous: ExerciseProgress,
+  score: PerformanceScore,
+  discounted: boolean,
+): LadderOutcome {
+  if (discounted) return holdLadder(previous, 'Stopped early. Nothing recorded against this one.')
+  if (!isTimed(exercise)) return holdLadder(previous, 'Notes counted.')
+  return advanceLadder(previous.ladder, score)
+}
+
+function holdLadder(previous: ExerciseProgress, message: string): LadderOutcome {
+  return { next: previous.ladder, message }
 }
 
 function gapBeforeToday(profile: LearnerProfile, now: Date): number | null {

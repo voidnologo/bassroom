@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
 import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
-import { countInBeatsOf, musicEndBeat } from '../../music/meter'
+import { countInBeatsOf, isTimed, musicEndBeat } from '../../music/meter'
 import { noteName } from '../../music/notes'
 import type { Exercise, TargetNote } from '../../music/types'
 import type { NextAction } from '../../coach/types'
@@ -120,7 +120,7 @@ function Header({ exercise, progress }: { exercise: Exercise; progress: Exercise
       <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
         <Stars value={progress.bestStars} />
         <span className="tiny faint">
-          Next: {starRequirementText(nextStar(progress.bestStars))}
+          Next: {starRequirementText(nextStar(progress.bestStars), exercise)}
         </span>
       </div>
     </div>
@@ -165,7 +165,8 @@ function Stage(props: StageProps) {
         position={position}
         showCues={showCues}
         take={take}
-        beatsPerBar={exercise.timeSignature[0]}
+        exercise={exercise}
+        promptCount={targets.length}
       />
 
       <Fretboard {...fretboardPropsFor({ prompt, position, showCues, take, targets })} />
@@ -212,7 +213,6 @@ function TransportBar({
   isProbe,
   onProbe,
 }: StageProps & { running: boolean }) {
-  const percentOfTarget = Math.round((bpm / exercise.targetBpm) * 100)
   return (
     <div className="row-between wrap" style={{ gap: 18 }}>
       <div className="row" style={{ gap: 12 }}>
@@ -229,23 +229,44 @@ function TransportBar({
         <ProbeToggle checked={isProbe} disabled={running} onChange={onProbe} />
       </div>
 
-      <div className="stack" style={{ flex: 1, minWidth: 260, gap: 4 }}>
-        <div className="row-between tiny muted">
-          <label htmlFor="tempo">Tempo</label>
-          <span className="mono">
-            {bpm} bpm · {percentOfTarget}% of {exercise.targetBpm}
-          </span>
-        </div>
-        <input
-          id="tempo"
-          type="range"
-          min={exercise.floorBpm}
-          max={Math.round(exercise.targetBpm * 1.1)}
-          value={bpm}
-          disabled={running}
-          onChange={(event) => onBpm(Number(event.target.value))}
-        />
+      {/* A drill the learner is never asked to play faster has no tempo to set,
+          and a slider that changes nothing they are judged on is a wrong cue. */}
+      {isTimed(exercise) && (
+        <TempoControl exercise={exercise} bpm={bpm} onBpm={onBpm} disabled={running} />
+      )}
+    </div>
+  )
+}
+
+function TempoControl({
+  exercise,
+  bpm,
+  onBpm,
+  disabled,
+}: {
+  exercise: Exercise
+  bpm: number
+  onBpm: (bpm: number) => void
+  disabled: boolean
+}) {
+  const percentOfTarget = Math.round((bpm / exercise.targetBpm) * 100)
+  return (
+    <div className="stack" style={{ flex: 1, minWidth: 260, gap: 4 }}>
+      <div className="row-between tiny muted">
+        <label htmlFor="tempo">Tempo</label>
+        <span className="mono">
+          {bpm} bpm · {percentOfTarget}% of {exercise.targetBpm}
+        </span>
       </div>
+      <input
+        id="tempo"
+        type="range"
+        min={exercise.floorBpm}
+        max={Math.round(exercise.targetBpm * 1.1)}
+        value={bpm}
+        disabled={disabled}
+        onChange={(event) => onBpm(Number(event.target.value))}
+      />
     </div>
   )
 }
@@ -274,13 +295,15 @@ function NowPlaying({
   position,
   showCues,
   take,
-  beatsPerBar,
+  exercise,
+  promptCount,
 }: {
   prompt: TargetNote | undefined
   position: Position | null
   showCues: boolean
   take: TakeState
-  beatsPerBar: number
+  exercise: Exercise
+  promptCount: number
 }) {
   return (
     <div className="row-between wrap">
@@ -289,10 +312,34 @@ function NowPlaying({
         <span className="where">{showCues ? whereText(position, prompt) : 'retention check'}</span>
       </div>
       <div className="stack" style={{ alignItems: 'flex-end', gap: 6 }}>
-        <BeatDots beatsPerBar={beatsPerBar} current={take.beatInBar} />
+        <Pace take={take} exercise={exercise} promptCount={promptCount} />
         <span className="tiny faint mono">{hearingText(take)}</span>
       </div>
     </div>
+  )
+}
+
+/**
+ * Beat dots are a metronome readout. A drill with no metronome has nothing to
+ * put in them, and four dots with one lit read as progress through a take that
+ * is eight prompts long. What is true there is how many prompts are left.
+ */
+function Pace({
+  take,
+  exercise,
+  promptCount,
+}: {
+  take: TakeState
+  exercise: Exercise
+  promptCount: number
+}) {
+  if (isTimed(exercise)) {
+    return <BeatDots beatsPerBar={exercise.timeSignature[0]} current={take.beatInBar} />
+  }
+  return (
+    <span className="tiny faint mono">
+      note {Math.min(take.promptIndex + 1, promptCount)} of {promptCount}
+    </span>
   )
 }
 
@@ -333,6 +380,7 @@ function Result({
   verdicts: Verdict[]
   attempt: AttemptResult
 }) {
+  const timed = isTimed(exercise)
   return (
     <div className="card">
       <div className="row-between wrap" style={{ marginBottom: 14 }}>
@@ -352,9 +400,7 @@ function Result({
       <div className="grid grid-3" style={{ marginBottom: 14 }}>
         <Stat label="Overall" value={String(score.overall)} suffix="/100" />
         <Stat label="Right notes" value={`${Math.round(score.pitchAccuracy * 100)}%`} />
-        <Stat label="In time" value={`${Math.round(score.timingAccuracy * 100)}%`} />
-        <Stat label="Average" value={signed(score.meanTimingErrorMs)} suffix="ms" />
-        <Stat label="Steadiness" value={`±${Math.round(score.timingSpreadMs)}`} suffix="ms" />
+        {timed && <TimingStats score={score} />}
         <Stat
           label="Missed"
           value={String(score.missedNotes)}
@@ -362,16 +408,33 @@ function Result({
         />
       </div>
 
-      <VerdictStrip verdicts={verdicts} />
+      <VerdictStrip verdicts={verdicts} timed={timed} />
       <EstimateOutcome
         guess={attempt.attempt.selfEstimate}
         wasRight={attempt.attempt.estimateWasRight}
       />
-      <p className="small muted" style={{ marginTop: 12 }}>
-        {attempt.ladder.message}
-      </p>
+      {timed && (
+        <p className="small muted" style={{ marginTop: 12 }}>
+          {attempt.ladder.message}
+        </p>
+      )}
       <Meter fraction={score.overall / 100} good={score.overall >= 90} />
     </div>
+  )
+}
+
+/**
+ * Withheld from a take with no clock. Its notes are recorded at the beat they
+ * were asked for, so every figure here would read back the recording rather
+ * than anything the learner did.
+ */
+function TimingStats({ score }: { score: PerformanceScore }) {
+  return (
+    <>
+      <Stat label="In time" value={`${Math.round(score.timingAccuracy * 100)}%`} />
+      <Stat label="Average" value={signed(score.meanTimingErrorMs)} suffix="ms" />
+      <Stat label="Steadiness" value={`±${Math.round(score.timingSpreadMs)}`} suffix="ms" />
+    </>
   )
 }
 

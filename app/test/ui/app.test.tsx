@@ -72,6 +72,15 @@ describe('first run', () => {
     const plan = screen.getByRole('heading', { name: 'Practise this' }).closest('.card')
     expect(within(plan as HTMLElement).getAllByRole('button').length).toBeGreaterThan(0)
   })
+
+  /** The first thing a new learner is offered has no clock, so listing a target
+      tempo beside it invites them to chase a number it does not measure. */
+  it('lists a drill with no clock without a tempo', async () => {
+    await openApp()
+    const plan = screen.getByRole('heading', { name: 'Practise this' }).closest('.card')
+    const row = within(plan as HTMLElement).getByRole('button', { name: /find each string/i })
+    expect(within(row).getByText('No clock')).toBeInTheDocument()
+  })
 })
 
 describe('navigation', () => {

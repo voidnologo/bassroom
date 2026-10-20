@@ -93,42 +93,66 @@ describe('advanceLadder', () => {
 
 describe('starsFor', () => {
   it('awards three stars only for a clean take at full tempo', () => {
-    expect(starsFor(score(96), 107, { targetBpm: 107, floorBpm: 60 })).toBe(3)
+    expect(starsFor(score(96), 107, { targetBpm: 107, floorBpm: 60, mode: 'play-along' })).toBe(3)
   })
 
   it('withholds the third star when the tempo is short of target', () => {
-    expect(starsFor(score(96), 90, { targetBpm: 107, floorBpm: 60 })).toBeLessThan(3)
+    expect(
+      starsFor(score(96), 90, { targetBpm: 107, floorBpm: 60, mode: 'play-along' }),
+    ).toBeLessThan(3)
   })
 
   it('withholds the third star when accuracy is short', () => {
-    expect(starsFor(score(90), 107, { targetBpm: 107, floorBpm: 60 })).toBeLessThan(3)
+    expect(
+      starsFor(score(90), 107, { targetBpm: 107, floorBpm: 60, mode: 'play-along' }),
+    ).toBeLessThan(3)
   })
 
   it('awards two stars for a good take near tempo', () => {
-    expect(starsFor(score(90), 95, { targetBpm: 107, floorBpm: 60 })).toBe(2)
+    expect(starsFor(score(90), 95, { targetBpm: 107, floorBpm: 60, mode: 'play-along' })).toBe(2)
   })
 
   it('awards one star for a workable take at the exercise floor', () => {
     // The ladder starts every learner at the floor, so a first take played
     // accurately has to be able to earn a star there.
-    expect(starsFor(score(78), 60, { targetBpm: 107, floorBpm: 60 })).toBe(1)
+    expect(starsFor(score(78), 60, { targetBpm: 107, floorBpm: 60, mode: 'play-along' })).toBe(1)
   })
 
   it('awards a star at the floor however slow that floor is', () => {
-    expect(starsFor(score(80), 45, { targetBpm: 110, floorBpm: 45 })).toBe(1)
+    expect(starsFor(score(80), 45, { targetBpm: 110, floorBpm: 45, mode: 'play-along' })).toBe(1)
   })
 
   it('awards nothing below the floor, however accurate', () => {
-    expect(starsFor(score(100), 40, { targetBpm: 110, floorBpm: 45 })).toBe(0)
+    expect(starsFor(score(100), 40, { targetBpm: 110, floorBpm: 45, mode: 'play-along' })).toBe(0)
   })
 
   it('awards nothing for a take that fell apart', () => {
-    expect(starsFor(score(40), 60, { targetBpm: 107, floorBpm: 60 })).toBe(0)
+    expect(starsFor(score(40), 60, { targetBpm: 107, floorBpm: 60, mode: 'play-along' })).toBe(0)
   })
 
-  it('describes what each star needs', () => {
-    for (const star of [0, 1, 2, 3] as const) {
-      expect(starRequirementText(star).length).toBeGreaterThan(0)
-    }
+  it.each([0, 1, 2, 3] as const)('describes what star %i needs', (star) => {
+    expect(starRequirementText(star, { mode: 'play-along' }).length).toBeGreaterThan(0)
+  })
+})
+
+/**
+ * Call and response never starts a metronome, so the tempo it is nominally run
+ * at is a number the learner cannot influence. Gating stars on it capped the
+ * drill at one star however well it was played.
+ */
+describe('starsFor on an exercise with no clock', () => {
+  const noClock = { targetBpm: 60, floorBpm: 40, mode: 'call-response' } as const
+
+  it.each([
+    [96, 3],
+    [90, 2],
+    [78, 1],
+    [40, 0],
+  ])('awards %i-point accuracy %i stars whatever tempo is recorded', (overall, expected) => {
+    expect(starsFor(score(overall), noClock.floorBpm, noClock)).toBe(expected)
+  })
+
+  it('says nothing about tempo when it describes what a star needs', () => {
+    expect(starRequirementText(1, noClock)).not.toMatch(/tempo|bpm/i)
   })
 })

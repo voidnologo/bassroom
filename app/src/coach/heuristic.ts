@@ -1,4 +1,5 @@
 import { DEMOTION_SCORE, nextRungBpm, PROMOTION_SCORE } from '../engine/tempoLadder'
+import { isTimed } from '../music/meter'
 import type {
   CoachFeedback,
   CoachProvider,
@@ -77,6 +78,7 @@ export class HeuristicCoach implements CoachProvider {
 // --- rules -----------------------------------------------------------------
 
 function dragOrRush({ telemetry }: CoachRequest): Observation | null {
+  if (!isTimed(telemetry.exercise)) return null
   const { meanTimingErrorMs, timingSpreadMs } = telemetry.score
   if (Math.abs(meanTimingErrorMs) < AUDIBLE_OFFSET_MS) return null
   // A large spread means the notes are scattered, not uniformly displaced, and
@@ -93,6 +95,7 @@ function dragOrRush({ telemetry }: CoachRequest): Observation | null {
 }
 
 function steadiness({ telemetry }: CoachRequest): Observation | null {
+  if (!isTimed(telemetry.exercise)) return null
   if (telemetry.score.timingSpreadMs <= UNSTEADY_SPREAD_MS) return null
   return {
     id: 'timing-spread',
@@ -283,12 +286,17 @@ function headlineFor(request: CoachRequest, observations: Observation[]): string
   }
   if (observations.length === 0 && overall >= PROMOTION_SCORE) return 'Solid take. Nothing to fix.'
   if (observations.length === 0)
-    return 'Nothing specific went wrong. More repetitions at this tempo.'
+    return 'Nothing specific went wrong. ' + repeatAdvice(request.telemetry)
   return observations[0].statement
+}
+
+function repeatAdvice(telemetry: TakeTelemetry): string {
+  return isTimed(telemetry.exercise) ? 'More repetitions at this tempo.' : 'Run it again.'
 }
 
 function nextActionFor(request: CoachRequest, observations: Observation[]): NextAction {
   const { telemetry } = request
+  if (!isTimed(telemetry.exercise)) return untimedAction(telemetry)
   const recurring = observations.find((observation) => observation.id === 'recurring-spot')
   if (recurring) {
     // Reuse the bar the observation named. Recomputing it found the first bad
@@ -322,6 +330,17 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
   }
 
   return { kind: 'repeat', detail: 'Run it again at this tempo. One thing at a time.' }
+}
+
+/**
+ * A drill with no clock has no tempo to move up or down, so the only things
+ * left to say are go again or move on.
+ */
+function untimedAction(telemetry: TakeTelemetry): NextAction {
+  if (telemetry.score.overall >= PROMOTION_SCORE) {
+    return { kind: 'switch-exercise', detail: 'You can find all of these now. Move on.' }
+  }
+  return { kind: 'repeat', detail: 'Run it again. One note at a time, no hurry.' }
 }
 
 /** Pull the bar number back out of the evidence line that named it. */

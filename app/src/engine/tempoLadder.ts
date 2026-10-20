@@ -1,3 +1,5 @@
+import { isTimed } from '../music/meter'
+import type { PracticeMode } from '../music/types'
 import type { PerformanceScore } from './judge'
 
 export type Star = 0 | 1 | 2 | 3
@@ -90,6 +92,7 @@ export interface StarThresholds {
   targetBpm: number
   /** The slowest tempo the exercise is meant to be practised at. */
   floorBpm: number
+  mode: PracticeMode
 }
 
 /**
@@ -103,23 +106,49 @@ export interface StarThresholds {
  * downstream: no star means a review lapse, and the lesson never unlocks.
  */
 export function starsFor(score: PerformanceScore, bpm: number, thresholds: StarThresholds): Star {
+  const earned = starsForAccuracy(score)
+  if (!isTimed(thresholds)) return earned
   const { targetBpm, floorBpm } = thresholds
   const ratio = bpm / targetBpm
-  if (score.overall >= 95 && ratio >= 1) return 3
-  if (score.overall >= 88 && ratio >= 0.85) return 2
-  if (score.overall >= 75 && bpm >= floorBpm) return 1
+  if (earned === 3 && ratio >= 1) return 3
+  if (earned >= 2 && ratio >= 0.85) return 2
+  if (earned >= 1 && bpm >= floorBpm) return 1
   return 0
 }
 
-export function starRequirementText(star: Star): string {
+/**
+ * What the accuracy alone is worth, before any tempo is asked of it. An untimed
+ * drill stops here: there is no tempo to earn, so gating on one would cap it at
+ * a single star however well it is played.
+ */
+function starsForAccuracy(score: PerformanceScore): Star {
+  if (score.overall >= ACCURACY_FOR_THREE) return 3
+  if (score.overall >= ACCURACY_FOR_TWO) return 2
+  if (score.overall >= ACCURACY_FOR_ONE) return 1
+  return 0
+}
+
+const ACCURACY_FOR_ONE = 75
+const ACCURACY_FOR_TWO = 88
+const ACCURACY_FOR_THREE = 95
+
+export function starRequirementText(star: Star, thresholds: Pick<StarThresholds, 'mode'>): string {
+  if (!isTimed(thresholds)) return ACCURACY_REQUIREMENTS[star]
   switch (star) {
     case 1:
-      return '75% accurate at the starting tempo'
+      return `${ACCURACY_FOR_ONE}% accurate at the starting tempo`
     case 2:
-      return '88% at 85% of target tempo'
+      return `${ACCURACY_FOR_TWO}% at 85% of target tempo`
     case 3:
-      return '95% at full tempo'
+      return `${ACCURACY_FOR_THREE}% at full tempo`
     default:
       return 'Complete a take'
   }
+}
+
+const ACCURACY_REQUIREMENTS: Record<Star, string> = {
+  0: 'Complete a take',
+  1: `${ACCURACY_FOR_ONE}% of the notes right`,
+  2: `${ACCURACY_FOR_TWO}% of the notes right`,
+  3: `${ACCURACY_FOR_THREE}% of the notes right`,
 }

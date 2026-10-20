@@ -23,6 +23,7 @@ export interface ExerciseInput {
   floorBpm?: number
   countInBars?: number
   repeats?: number
+  shuffleEachTake?: boolean
   keyCenter?: string
   tips?: string[]
 }

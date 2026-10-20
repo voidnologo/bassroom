@@ -9,7 +9,7 @@ import {
 } from '../../progress/reducer'
 import { useProgressStore } from '../../state/progressStore'
 import type { ProgressSnapshot } from '../../progress/types'
-import { LevelBar, Meter, Pill, Stars } from '../components/Indicators'
+import { LevelBar, Meter, Pill, Stars, tempoText } from '../components/Indicators'
 import type { Navigate } from '../navigation'
 
 /** Where a session starts: what to play today, and what has been earned so far. */
@@ -200,7 +200,7 @@ function PlanRow({ item, onNavigate }: { item: DailyPlanItem; onNavigate: Naviga
         </span>
         <span className="row" style={{ gap: 12 }}>
           <Stars value={stars} label={false} />
-          <span className="tiny faint mono">{item.exercise.targetBpm} bpm</span>
+          <span className="tiny faint mono">{tempoText(item.exercise)}</span>
         </span>
       </button>
     </li>

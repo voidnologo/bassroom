@@ -92,7 +92,7 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
 
   const [take, setTake] = useState<TakeState>(initialState)
   const pendingRef = useRef<SessionResult | null>(null)
-  const targets: TargetNote[] = useMemo(() => expandRepeats(exercise), [exercise])
+  const [targets, setAsked] = useAskedTargets(exercise)
   const diagnostics = useDiagnosticsRecorder(engine, snapshot.profile.diagnosticsEnabled)
   const complete = useTakeCompletion({
     exercise,
@@ -140,6 +140,7 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
     diagnostics,
     refs: { sessionRef, pendingRef, verdictsRef, beatRef },
     setTake,
+    onTargets: setAsked,
   })
 
   const stop = useCallback(() => {
@@ -171,6 +172,19 @@ export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOp
     submitEstimate,
     ready: engineState === 'running',
   }
+}
+
+/**
+ * The notes the take on screen is asking for.
+ *
+ * The order is the session's to choose - a drill may reshuffle it every take -
+ * so the written order is only what is drawn until a take has said otherwise.
+ */
+function useAskedTargets(exercise: Exercise): [TargetNote[], (targets: TargetNote[]) => void] {
+  const written: TargetNote[] = useMemo(() => expandRepeats(exercise), [exercise])
+  const [asked, setAsked] = useState<TargetNote[] | null>(null)
+  useEffect(() => setAsked(null), [exercise])
+  return [asked ?? written, setAsked]
 }
 
 interface CompletionOptions {
@@ -373,6 +387,8 @@ interface StartTakeOptions {
     beatRef: React.MutableRefObject<number>
   }
   setTake: SetTake
+  /** Publishes the order the session settled on, which may not be the written one. */
+  onTargets: (targets: TargetNote[]) => void
 }
 
 /**
@@ -380,7 +396,8 @@ interface StartTakeOptions {
  * directly: React would pass the click event as the tempo.
  */
 function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
-  const { engine, exercise, bpm, latencyMs, complete, finish, diagnostics, refs, setTake } = options
+  const { engine, exercise, bpm, latencyMs, complete, finish, diagnostics, refs } = options
+  const { setTake, onTargets } = options
   const { sessionRef, pendingRef, verdictsRef, beatRef } = refs
 
   return useCallback(
@@ -399,9 +416,10 @@ function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
       beatRef.current = -exercise.countInBars * exercise.timeSignature[0]
       setTake({ ...initialState, phase: 'count-in' })
 
-      const session = buildSession({ engine, latencyMs, setTake, onFinish: finish })
+      const session = buildSession({ engine, latencyMs, beatRef, setTake, onFinish: finish })
       sessionRef.current = session
       session.start(exercise, takeBpm)
+      onTargets(session.currentTargets)
     },
     [
       bpm,
@@ -412,6 +430,7 @@ function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
       finish,
       latencyMs,
       beatRef,
+      onTargets,
       pendingRef,
       sessionRef,
       setTake,
@@ -423,17 +442,24 @@ function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
 function buildSession(options: {
   engine: Engine
   latencyMs: number
+  beatRef: React.MutableRefObject<number>
   setTake: SetTake
   onFinish: (result: SessionResult) => void
 }): PracticeSession {
-  const { engine, latencyMs, setTake, onFinish } = options
+  const { engine, latencyMs, beatRef, setTake, onFinish } = options
   return new PracticeSession({
     input: engine,
     createTimeKeeper: () => engine.createTimeKeeper(),
     latencyMs,
     callbacks: {
       onPhase: (phase) => setTake((current) => ({ ...current, phase })),
-      onPrompt: (_note, index) => setTake((current) => ({ ...current, promptIndex: index })),
+      // A call-and-response take has no clock, so the prompt is the only thing
+      // that moves. Without this the beat ref sits on the count-in for the
+      // whole take and the chart marks every note as still ahead.
+      onPrompt: (note, index) => {
+        beatRef.current = note.startBeat
+        setTake((current) => ({ ...current, promptIndex: index }))
+      },
       onFinish,
     },
   })
