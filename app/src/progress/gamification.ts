@@ -54,10 +54,15 @@ export interface XpBreakdown {
  * at all, how accurate it was, and how close to performance tempo it was. Mere
  * repetition at the floor tempo earns the base amount and no more.
  */
+/** No tempo means no tempo bonus: there is no performance speed to approach. */
+function tempoRatioOf(attempt: Attempt): number {
+  if (attempt.bpm === null || attempt.targetBpm === null) return 0
+  return Math.min(1, attempt.bpm / attempt.targetBpm)
+}
+
 export function xpForAttempt(attempt: Attempt, isFirstOfDay: boolean): XpBreakdown {
   const scoreBonus = Math.round((attempt.score.overall / 100) * MAX_SCORE_BONUS)
-  const tempoRatio = Math.min(1, attempt.bpm / attempt.targetBpm)
-  const tempoBonus = Math.round(tempoRatio * MAX_TEMPO_BONUS)
+  const tempoBonus = Math.round(tempoRatioOf(attempt) * MAX_TEMPO_BONUS)
   const starBonus = STAR_BONUS[attempt.stars]
   const firstOfDayBonus = isFirstOfDay ? FIRST_TAKE_OF_DAY_BONUS : 0
 
@@ -248,7 +253,10 @@ const RULES: Record<BadgeId, BadgeRule> = {
   'first-note': (context) => context.notesPlayed >= 1,
   'first-star': (context) => context.starredExerciseIds.size >= 1,
   'three-stars': (context) => context.masteredExerciseIds.size >= 1,
-  'full-tempo': (context) => context.history.some((item) => item.bpm >= item.targetBpm),
+  'full-tempo': (context) =>
+    context.history.some(
+      (item) => item.bpm !== null && item.targetBpm !== null && item.bpm >= item.targetBpm,
+    ),
   'week-streak': (context) => context.profile.streak.current >= 7,
   'month-streak': (context) => context.profile.streak.current >= 30,
   comeback: (context) =>

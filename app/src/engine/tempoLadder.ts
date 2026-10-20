@@ -1,5 +1,4 @@
 import { isTimed } from '../music/meter'
-import type { PracticeMode } from '../music/types'
 import type { PerformanceScore } from './judge'
 
 export type Star = 0 | 1 | 2 | 3
@@ -88,12 +87,14 @@ export function nextRungBpm(bpm: number): number {
   return bpm + Math.max(2, Math.round(bpm * 0.08))
 }
 
-export interface StarThresholds {
-  targetBpm: number
-  /** The slowest tempo the exercise is meant to be practised at. */
-  floorBpm: number
-  mode: PracticeMode
-}
+export type StarThresholds =
+  | {
+      mode: 'play-along'
+      targetBpm: number
+      /** The slowest tempo the exercise is meant to be practised at. */
+      floorBpm: number
+    }
+  | { mode: 'call-response' }
 
 /**
  * The first star is earned at the exercise's own floor tempo, not at a fixed
@@ -105,9 +106,13 @@ export interface StarThresholds {
  * stars however well they played it. That reads as a failure everywhere
  * downstream: no star means a review lapse, and the lesson never unlocks.
  */
-export function starsFor(score: PerformanceScore, bpm: number, thresholds: StarThresholds): Star {
+export function starsFor(
+  score: PerformanceScore,
+  bpm: number | null,
+  thresholds: StarThresholds,
+): Star {
   const earned = starsForAccuracy(score)
-  if (!isTimed(thresholds)) return earned
+  if (!isTimed(thresholds) || bpm === null) return earned
   const { targetBpm, floorBpm } = thresholds
   const ratio = bpm / targetBpm
   if (earned === 3 && ratio >= 1) return 3

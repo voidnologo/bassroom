@@ -14,14 +14,14 @@ import {
 } from '../../src/progress/reducer'
 import { addDays } from '../../src/progress/srs'
 import type { PerformanceScore } from '../../src/engine/judge'
-import type { Exercise } from '../../src/music/types'
+import type { Exercise, TimedExercise, UntimedExercise } from '../../src/music/types'
 import type { ProgressSnapshot } from '../../src/progress/types'
 import { exercise } from '../../src/content/exerciseBuilder'
 import { note } from '../../src/content/authoring'
 
 const DAY_ONE = new Date('2026-03-02T19:00:00')
 
-const pulse: Exercise = exercise({
+const pulse: TimedExercise = exercise({
   id: 'test-pulse',
   title: 'Pulse',
   instructions: 'Play four quarter notes on the open A string in time.',
@@ -39,6 +39,16 @@ const shuttle: Exercise = exercise({
   notes: [note('A3', 0, 1), note('A5', 1, 1)],
   targetBpm: 90,
   floorBpm: 50,
+})
+
+/** No metronome, so no tempo to record and no ladder to climb. */
+const findStrings: UntimedExercise = exercise({
+  id: 'test-find-strings',
+  title: 'Find each string',
+  instructions: 'A string is named on screen. Pluck it.',
+  mode: 'call-response',
+  skills: ['plucking-open'],
+  notes: [note('E0', 0, 1), note('A0', 1, 1), note('D0', 2, 1), note('G0', 3, 1)],
 })
 
 function score(overall: number, overrides: Partial<PerformanceScore> = {}): PerformanceScore {
@@ -100,7 +110,44 @@ describe('progressFor', () => {
   })
 
   it('starts the ladder at the floor tempo, not the target', () => {
-    expect(createExerciseProgress(pulse, DAY_ONE).ladder.currentBpm).toBe(pulse.floorBpm)
+    expect(createExerciseProgress(pulse, DAY_ONE).ladder?.currentBpm).toBe(pulse.floorBpm)
+  })
+
+  it('gives an exercise with no clock no ladder, because it has no tempo to climb', () => {
+    expect(createExerciseProgress(findStrings, DAY_ONE).ladder).toBeNull()
+  })
+})
+
+/**
+ * A tempo stored against a take nobody played to a tempo is a number the XP
+ * sum, the badges and the history would all read as if it meant something.
+ */
+describe('a take of an exercise with no clock', () => {
+  const untimed = input({ exercise: findStrings, bpm: null })
+
+  it('records no tempo and no target tempo', () => {
+    const { attempt } = applyAttempt(createSnapshot(DAY_ONE), untimed)
+    expect(attempt.bpm).toBeNull()
+    expect(attempt.targetBpm).toBeNull()
+  })
+
+  it('reports no ladder move, because there is no ladder', () => {
+    expect(applyAttempt(createSnapshot(DAY_ONE), untimed).ladder).toBeNull()
+  })
+
+  it('leaves the ladder null on the exercise it updates', () => {
+    const { snapshot } = applyAttempt(createSnapshot(DAY_ONE), untimed)
+    expect(snapshot.exercises[findStrings.id].ladder).toBeNull()
+  })
+
+  it('still earns its stars and its XP from the notes', () => {
+    const result = applyAttempt(createSnapshot(DAY_ONE), untimed)
+    expect(result.stars).toBe(3)
+    expect(result.xp.total).toBeGreaterThan(0)
+  })
+
+  it('earns no tempo bonus, because it was not played at a tempo', () => {
+    expect(applyAttempt(createSnapshot(DAY_ONE), untimed).xp.tempoBonus).toBe(0)
   })
 })
 
@@ -120,10 +167,10 @@ describe('a take the detector heard nothing in', () => {
 
   it('does not demote a tempo the player had already earned', () => {
     const promoted = run([{}, {}])
-    const before = progressFor(promoted, pulse, DAY_ONE).ladder.currentBpm
+    const before = progressFor(promoted, pulse, DAY_ONE).ladder?.currentBpm ?? 0
     const result = applyAttempt(promoted, input({ score: SILENT }))
     expect(before).toBeGreaterThan(pulse.floorBpm)
-    expect(result.ladder.next.currentBpm).toBe(before)
+    expect(result.ladder?.next.currentBpm).toBe(before)
   })
 
   it('does not count as a lapse against the review schedule', () => {

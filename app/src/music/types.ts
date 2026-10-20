@@ -49,12 +49,11 @@ export type PracticeMode =
   /** Scrolling timeline against a metronome. Judges pitch and timing. */
   | 'play-along'
 
-export interface Exercise {
+interface ExerciseBase {
   id: string
   title: string
   /** One or two sentences shown above the fretboard while playing. */
   instructions: string
-  mode: PracticeMode
   skills: SkillId[]
   timeSignature: TimeSignature
   /**
@@ -62,10 +61,6 @@ export interface Exercise {
    * Beats are relative to the start of the exercise body.
    */
   meterChanges?: MeterChange[]
-  /** Tempo at which the exercise counts as learned. */
-  targetBpm: number
-  /** Slowest tempo the ladder will drop to. */
-  floorBpm: number
   countInBars: number
   notes: TargetNote[]
   /** Repeat the note list this many times within one take. */
@@ -76,6 +71,26 @@ export interface Exercise {
   /** Technique reminders listed beside the exercise. */
   tips?: string[]
 }
+
+/** Played against a metronome, and worked up the tempo ladder. */
+export interface TimedExercise extends ExerciseBase {
+  mode: 'play-along'
+  /** Tempo at which the exercise counts as learned. */
+  targetBpm: number
+  /** Slowest tempo the ladder will drop to. */
+  floorBpm: number
+}
+
+/**
+ * No metronome. There is no tempo to reach, no floor to drop back to and no
+ * ladder to climb, so the exercise does not carry the numbers that describe
+ * one. `src/music/meter.ts::isTimed` narrows an exercise to the other case.
+ */
+export interface UntimedExercise extends ExerciseBase {
+  mode: 'call-response'
+}
+
+export type Exercise = TimedExercise | UntimedExercise
 
 export interface Lesson {
   id: string

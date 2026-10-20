@@ -24,6 +24,14 @@ export type Verdict =
  */
 export type TakeClock = 'timed' | 'untimed'
 
+/**
+ * Stands in for the tempo when there is none, and sizes nothing but the window
+ * that decides which target a note belongs to. An untimed take records each
+ * note on the beat it was asked for, so no window reaches a different answer
+ * and no figure derived from this one is reported.
+ */
+const UNTIMED_MATCH_BPM = 60
+
 export interface PlayedNote {
   /** Body-beat position derived from the onset, already latency-corrected. */
   beat: number
@@ -102,11 +110,11 @@ export function windowsForTempo(bpm: number): TimingWindows {
 export function judgePerformance(
   targets: TargetNote[],
   played: PlayedNote[],
-  bpm: number,
+  bpm: number | null,
   clock: TakeClock = 'timed',
 ): NoteJudgment[] {
-  const windows = windowsForTempo(bpm)
-  const beatMs = 60000 / bpm
+  const windows = windowsForTempo(bpm ?? UNTIMED_MATCH_BPM)
+  const beatMs = 60000 / (bpm ?? UNTIMED_MATCH_BPM)
   const judgments: NoteJudgment[] = []
   const claimed = new Set<number>()
 

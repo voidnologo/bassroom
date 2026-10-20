@@ -1,5 +1,4 @@
 import { DEMOTION_SCORE, nextRungBpm, PROMOTION_SCORE } from '../engine/tempoLadder'
-import { isTimed } from '../music/meter'
 import type {
   CoachFeedback,
   CoachProvider,
@@ -292,33 +291,28 @@ function headlineFor(request: CoachRequest, observations: Observation[]): string
 }
 
 function repeatAdvice(telemetry: TakeTelemetry): string {
-  return isTimed(telemetry.exercise) ? 'More repetitions at this tempo.' : 'Run it again.'
+  return telemetry.bpm === null ? 'Run it again.' : 'More repetitions at this tempo.'
 }
 
 function nextActionFor(request: CoachRequest, observations: Observation[]): NextAction {
   const { telemetry } = request
-  if (!isTimed(telemetry.exercise)) return untimedAction(telemetry)
+  const { bpm } = telemetry
+  const targetBpm = telemetry.exercise.targetBpm
+  // No tempo to drop to or move up from, so the only advice left is about notes.
+  if (bpm === null || targetBpm === null) return untimedAction(telemetry)
   const recurring = observations.find((observation) => observation.id === 'recurring-spot')
-  if (recurring) {
-    // Reuse the bar the observation named. Recomputing it found the first bad
-    // note of this take instead, so the two lines could point at different bars.
-    const bar = barFrom(recurring.evidence) ?? worstNote(telemetry)?.bar ?? 1
-    return {
-      kind: 'isolate',
-      detail: `Loop bar ${bar} on its own until it stops being the hard part.`,
-    }
-  }
+  if (recurring) return isolateAction(telemetry, recurring)
 
   if (telemetry.score.overall < DEMOTION_SCORE) {
     return {
       kind: 'slow-down',
-      detail: `Drop to ${Math.round(telemetry.bpm * 0.9)} bpm. Accuracy first; the speed comes back on its own.`,
-      bpm: Math.round(telemetry.bpm * 0.9),
+      detail: `Drop to ${Math.round(bpm * 0.9)} bpm. Accuracy first; the speed comes back on its own.`,
+      bpm: Math.round(bpm * 0.9),
     }
   }
 
-  if (telemetry.score.overall >= PROMOTION_SCORE && telemetry.bpm < telemetry.exercise.targetBpm) {
-    const nextBpm = Math.min(telemetry.exercise.targetBpm, nextRungBpm(telemetry.bpm))
+  if (telemetry.score.overall >= PROMOTION_SCORE && bpm < targetBpm) {
+    const nextBpm = Math.min(targetBpm, nextRungBpm(bpm))
     return {
       kind: 'speed-up',
       detail: `Clean enough to move up a step. Take it again at ${nextBpm} bpm.`,
@@ -331,6 +325,18 @@ function nextActionFor(request: CoachRequest, observations: Observation[]): Next
   }
 
   return { kind: 'repeat', detail: 'Run it again at this tempo. One thing at a time.' }
+}
+
+/**
+ * Reuse the bar the observation named. Recomputing it found the first bad note
+ * of this take instead, so the two lines could point at different bars.
+ */
+function isolateAction(telemetry: TakeTelemetry, recurring: Observation): NextAction {
+  const bar = barFrom(recurring.evidence) ?? worstNote(telemetry)?.bar ?? 1
+  return {
+    kind: 'isolate',
+    detail: `Loop bar ${bar} on its own until it stops being the hard part.`,
+  }
 }
 
 /**

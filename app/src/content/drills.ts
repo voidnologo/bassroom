@@ -25,7 +25,6 @@ export const DRILLS: Exercise[] = [
       ['E0', 'A0', 'D0', 'G0', 'A0', 'E0', 'G0', 'D0'].map((spec) => note(spec, 0, 1)),
     ),
     shuffleEachTake: true,
-    targetBpm: 60,
     tips: [
       'The pickup is the bar sitting under the strings that senses them. Resting a thumb on it steadies the hand but damps nothing, so rest the thumb on the E string instead: that is what keeps it quiet while you play the others.',
       'Pluck with the pad of the finger, not the tip, and pull slightly toward your palm rather than up.',
@@ -91,7 +90,6 @@ export const DRILLS: Exercise[] = [
       note('D1', 0, 1, { finger: 1 }),
       note('D3', 0, 1, { finger: 3 }),
     ]),
-    targetBpm: 60,
     tips: [
       'Just behind the fret takes the least pressure and gives the cleanest note. Further back buzzes; on top of the fret chokes.',
       'Thumb behind the neck, roughly opposite your second finger. Not hooked over the top.',
@@ -146,7 +144,6 @@ export const DRILLS: Exercise[] = [
     notes: prompts(
       ['E0', 'E1', 'E3', 'E5', 'E3', 'E6', 'E8', 'E5'].map((spec) => note(spec, 0, 1)),
     ),
-    targetBpm: 60,
     tips: [
       'The dots are your landmarks: 3, 5, 7, 9, and the double dot at 12.',
       'Fret 5 on the E string is the same pitch as the open A string. Use that to check yourself.',
@@ -162,7 +159,6 @@ export const DRILLS: Exercise[] = [
     notes: prompts(
       ['A0', 'A2', 'A3', 'A5', 'A3', 'A6', 'A0', 'A5'].map((spec) => note(spec, 0, 1)),
     ),
-    targetBpm: 60,
   }),
 
   // --- Reading tab ---------------------------------------------------------

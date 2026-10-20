@@ -81,7 +81,7 @@ export interface TakeOptions {
   askForEstimate: boolean
 }
 
-export function usePracticeTake(exercise: Exercise, bpm: number, options: TakeOptions) {
+export function usePracticeTake(exercise: Exercise, bpm: number | null, options: TakeOptions) {
   const { engine, coach, state: engineState } = useAudio()
   const snapshot = useProgressStore((store) => store.snapshot)
 
@@ -375,7 +375,7 @@ function daysSince(isoDate: string): number {
 interface StartTakeOptions {
   engine: Engine
   exercise: Exercise
-  bpm: number
+  bpm: number | null
   latencyMs: number
   complete: (result: SessionResult, estimate: SelfEstimate | null) => void
   finish: (result: SessionResult) => void
@@ -395,13 +395,13 @@ interface StartTakeOptions {
  * `atBpm` is optional, but an event handler must not be wired to the result
  * directly: React would pass the click event as the tempo.
  */
-function useStartTake(options: StartTakeOptions): (atBpm?: number) => void {
+function useStartTake(options: StartTakeOptions): (atBpm?: number | null) => void {
   const { engine, exercise, bpm, latencyMs, complete, finish, diagnostics, refs } = options
   const { setTake, onTargets } = options
   const { sessionRef, pendingRef, verdictsRef, beatRef } = refs
 
   return useCallback(
-    (atBpm?: number) => {
+    (atBpm?: number | null) => {
       const takeBpm = typeof atBpm === 'number' && Number.isFinite(atBpm) ? atBpm : bpm
       // A take left waiting for an estimate is finished but unrecorded; starting
       // another would drop it silently. Record it with no estimate instead.

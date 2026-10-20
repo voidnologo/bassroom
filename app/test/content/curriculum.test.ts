@@ -9,8 +9,8 @@ import {
 } from '../../src/content/curriculum'
 import { FRET_COUNT, STANDARD_TUNING, midiAt } from '../../src/music/fretboard'
 import { noteName } from '../../src/music/notes'
-import { barPositionAt } from '../../src/music/meter'
-import type { Exercise, Lesson } from '../../src/music/types'
+import { barPositionAt, isTimed } from '../../src/music/meter'
+import type { Exercise, Lesson, TimedExercise } from '../../src/music/types'
 
 const exerciseCases = ALL_EXERCISES.map((item) => ({ name: item.id, item }))
 const lessonCases = LESSONS.map((item) => ({ name: item.id, item }))
@@ -49,15 +49,6 @@ describe.each(exerciseCases)('exercise $name', ({ item }: { item: Exercise }) =>
     expect(item.notes.length).toBeGreaterThan(0)
   })
 
-  it('can be practised slower than its target tempo', () => {
-    expect(item.floorBpm).toBeLessThanOrEqual(item.targetBpm)
-    expect(item.floorBpm).toBeGreaterThanOrEqual(30)
-  })
-
-  it('sets a tempo a beginner can reach', () => {
-    expect(item.targetBpm).toBeLessThanOrEqual(160)
-  })
-
   it('plays every note on a 4-string in standard tuning', () => {
     for (const note of item.notes) {
       expect(note.midi).toBeGreaterThanOrEqual(STANDARD_TUNING[0])
@@ -89,6 +80,42 @@ describe.each(exerciseCases)('exercise $name', ({ item }: { item: Exercise }) =>
   it('counts the learner in', () => {
     expect(item.countInBars).toBeGreaterThanOrEqual(1)
   })
+})
+
+const timedCases = ALL_EXERCISES.filter(isTimed).map((item) => ({ name: item.id, item }))
+
+describe.each(timedCases)(
+  'exercise $name, played to a clock',
+  ({ item }: { item: TimedExercise }) => {
+    it('can be practised slower than its target tempo', () => {
+      expect(item.floorBpm).toBeLessThanOrEqual(item.targetBpm)
+      expect(item.floorBpm).toBeGreaterThanOrEqual(30)
+    })
+
+    it('sets a tempo a beginner can reach', () => {
+      expect(item.targetBpm).toBeLessThanOrEqual(160)
+    })
+  },
+)
+
+/**
+ * A tempo on an exercise with no metronome is a number nothing reads, and one
+ * a reader would take for a target the learner is meant to work towards.
+ */
+describe('an exercise with no clock', () => {
+  it('is in the catalogue, so the rule below is about something', () => {
+    expect(ALL_EXERCISES.filter((item) => !isTimed(item)).length).toBeGreaterThan(0)
+  })
+
+  it.each(ALL_EXERCISES.filter((item) => !isTimed(item)).map((item) => item.id))(
+    '%s carries no tempo',
+    (id) => {
+      const item = exerciseById(id)
+      expect(item).toBeDefined()
+      expect(item).not.toHaveProperty('targetBpm')
+      expect(item).not.toHaveProperty('floorBpm')
+    },
+  )
 })
 
 describe.each(lessonCases)('lesson $name', ({ item }: { item: Lesson }) => {
