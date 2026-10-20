@@ -400,7 +400,7 @@ function Result({
       <div className="grid grid-3" style={{ marginBottom: 14 }}>
         <Stat label="Overall" value={String(score.overall)} suffix="/100" />
         <Stat label="Right notes" value={`${Math.round(score.pitchAccuracy * 100)}%`} />
-        {timed && <TimingStats score={score} />}
+        <TimingStats score={score} />
         <Stat
           label="Missed"
           value={String(score.missedNotes)}
@@ -424,16 +424,18 @@ function Result({
 }
 
 /**
- * Withheld from a take with no clock. Its notes are recorded at the beat they
- * were asked for, so every figure here would read back the recording rather
- * than anything the learner did.
+ * Nothing at all for a take with no clock. The three figures are null together
+ * there, because its notes are recorded at the beat they were asked for and
+ * each one would read back the recording rather than anything the learner did.
  */
 function TimingStats({ score }: { score: PerformanceScore }) {
+  const { timingAccuracy, meanTimingErrorMs, timingSpreadMs } = score
+  if (timingAccuracy === null || meanTimingErrorMs === null || timingSpreadMs === null) return null
   return (
     <>
-      <Stat label="In time" value={`${Math.round(score.timingAccuracy * 100)}%`} />
-      <Stat label="Average" value={signed(score.meanTimingErrorMs)} suffix="ms" />
-      <Stat label="Steadiness" value={`±${Math.round(score.timingSpreadMs)}`} suffix="ms" />
+      <Stat label="In time" value={`${Math.round(timingAccuracy * 100)}%`} />
+      <Stat label="Average" value={signed(meanTimingErrorMs)} suffix="ms" />
+      <Stat label="Steadiness" value={`±${Math.round(timingSpreadMs)}`} suffix="ms" />
     </>
   )
 }

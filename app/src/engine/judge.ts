@@ -10,6 +10,20 @@ import type { TargetNote } from '../music/types'
 export type Verdict =
   'perfect' | 'good' | 'early' | 'late' | 'wrong-pitch' | 'unpitched' | 'missed' | 'extra'
 
+/**
+ * Whether the take being judged was played against a clock.
+ *
+ * A call-and-response take is not: it waits for the right pitch for as long as
+ * the learner needs, and records each note at the beat it was asked for. Its
+ * notes therefore have no timing error to find, and a figure produced from
+ * them would describe the recording rather than the playing.
+ *
+ * Defaults to `timed` wherever it is optional, which is every exercise with a
+ * metronome. `src/music/meter.ts::isTimed` is what decides this for an
+ * exercise; nothing else should infer it.
+ */
+export type TakeClock = 'timed' | 'untimed'
+
 export interface PlayedNote {
   /** Body-beat position derived from the onset, already latency-corrected. */
   beat: number
@@ -49,9 +63,10 @@ export interface NoteJudgment {
   semitoneError: number | null
   /**
    * Whether the attack landed inside the "good" window, decided without
-   * reference to the pitch. Null when nothing was played. Timing is knowable
-   * for an attack whose pitch is not, and conflating the two was telling a
-   * player who plucked on the beat that they had played a wrong note.
+   * reference to the pitch. Null when nothing was played, and null throughout
+   * an untimed take. Timing is knowable for an attack whose pitch is not, and
+   * conflating the two was telling a player who plucked on the beat that they
+   * had played a wrong note.
    */
   inTime: boolean | null
 }
@@ -88,6 +103,7 @@ export function judgePerformance(
   targets: TargetNote[],
   played: PlayedNote[],
   bpm: number,
+  clock: TakeClock = 'timed',
 ): NoteJudgment[] {
   const windows = windowsForTempo(bpm)
   const beatMs = 60000 / bpm
@@ -127,15 +143,16 @@ export function judgePerformance(
     const target = targets[bestIndex]
     const timingErrorMs = (note.beat - target.startBeat) * beatMs
     const semitoneError = note.midi === null ? null : note.midi - target.midi
+    const measured = clock === 'timed'
 
     judgments.push({
       targetIndex: bestIndex,
       target,
       played: note,
-      verdict: verdictFor(semitoneError, timingErrorMs, windows),
-      timingErrorMs,
+      verdict: verdictFor(semitoneError, timingErrorMs, windows, clock),
+      timingErrorMs: measured ? timingErrorMs : null,
       semitoneError,
-      inTime: Math.abs(timingErrorMs) <= windows.goodMs,
+      inTime: measured ? Math.abs(timingErrorMs) <= windows.goodMs : null,
     })
   }
 
@@ -159,9 +176,12 @@ function verdictFor(
   semitoneError: number | null,
   timingErrorMs: number,
   windows: TimingWindows,
+  clock: TakeClock,
 ): Verdict {
   if (semitoneError === null) return 'unpitched'
   if (semitoneError !== 0) return 'wrong-pitch'
+  // Nothing placed the note in time, so the right pitch is the whole verdict.
+  if (clock === 'untimed') return 'perfect'
   const magnitude = Math.abs(timingErrorMs)
   if (magnitude <= windows.perfectMs) return 'perfect'
   if (magnitude <= windows.goodMs) return 'good'
@@ -176,12 +196,16 @@ function orderKey(judgment: NoteJudgment): number {
 export interface PerformanceScore {
   /** Fraction of target notes played at the right pitch, 0..1. */
   pitchAccuracy: number
-  /** Fraction of target notes landing inside the "good" window, 0..1. */
-  timingAccuracy: number
+  /**
+   * Fraction of target notes landing inside the "good" window, 0..1. The three
+   * timing figures are null together, throughout a take with no clock: there
+   * was nothing to be in time with, so there is no figure to report.
+   */
+  timingAccuracy: number | null
   /** Mean signed timing error in ms. Positive means dragging. */
-  meanTimingErrorMs: number
+  meanTimingErrorMs: number | null
   /** Standard deviation of timing error in ms: the consistency measure. */
-  timingSpreadMs: number
+  timingSpreadMs: number | null
   /** Notes played that no target claimed. */
   extraNotes: number
   missedNotes: number
@@ -196,7 +220,10 @@ export interface PerformanceScore {
 const PITCH_WEIGHT = 0.6
 const TIMING_WEIGHT = 0.4
 
-export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
+export function scorePerformance(
+  judgments: NoteJudgment[],
+  clock: TakeClock = 'timed',
+): PerformanceScore {
   const targeted = judgments.filter((judgment) => judgment.target !== null)
   const total = targeted.length || 1
 
@@ -207,6 +234,47 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
   // altogether: the app has said it does not know, so it can neither credit
   // the note nor count it wrong.
   const nameable = targeted.filter((judgment) => judgment.verdict !== 'unpitched')
+
+  const pitchAccuracy = nameable.length === 0 ? 0 : correctPitch.length / nameable.length
+  const timing = clock === 'timed' ? timingFiguresOf(targeted) : NOTHING_TIMED
+  const extraNotes = judgments.filter((judgment) => judgment.verdict === 'extra').length
+
+  const extraPenalty = Math.min(0.25, (extraNotes / total) * 0.5)
+  const accuracy = timing.timingAccuracy
+  const judged =
+    accuracy === null ? pitchAccuracy : blend(pitchAccuracy, accuracy, nameable.length / total)
+  const overall = Math.max(0, Math.round((judged - extraPenalty) * 100))
+
+  return {
+    pitchAccuracy,
+    ...timing,
+    extraNotes,
+    missedNotes: targeted.filter((judgment) => judgment.verdict === 'missed').length,
+    wrongPitchNotes: targeted.filter((judgment) => judgment.verdict === 'wrong-pitch').length,
+    unnamedNotes: targeted.length - nameable.length,
+    totalTargets: targeted.length,
+    overall,
+  }
+}
+
+/**
+ * The timing half of a score. Kept together so that it is produced in one place
+ * and either all of it is there or none of it is, rather than each caller
+ * working out which of the three figures it may trust.
+ */
+type TimingFigures = Pick<
+  PerformanceScore,
+  'timingAccuracy' | 'meanTimingErrorMs' | 'timingSpreadMs'
+>
+
+const NOTHING_TIMED: TimingFigures = {
+  timingAccuracy: null,
+  meanTimingErrorMs: null,
+  timingSpreadMs: null,
+}
+
+function timingFiguresOf(targeted: NoteJudgment[]): TimingFigures {
+  const total = targeted.length || 1
   const inTime = targeted.filter((judgment) => judgment.inTime === true)
   const errors = targeted
     .map((judgment) => judgment.timingErrorMs)
@@ -216,36 +284,27 @@ export function scorePerformance(judgments: NoteJudgment[]): PerformanceScore {
   const variance = errors.length
     ? errors.reduce((sum, value) => sum + (value - meanTimingErrorMs) ** 2, 0) / errors.length
     : 0
-
-  const pitchAccuracy = nameable.length === 0 ? 0 : correctPitch.length / nameable.length
-  const timingAccuracy = inTime.length / total
-  const extraNotes = judgments.filter((judgment) => judgment.verdict === 'extra').length
-
-  // Pitch is weighted above timing because playing the wrong note is a
-  // different kind of mistake from playing the right note slightly late, and
-  // extra notes are penalised separately so that flailing cannot score well.
-  //
-  // Pitch carries only as much of the score as the app could actually read, so
-  // a take it could name nothing in is scored on its timing rather than on an
-  // accuracy figure standing in for an unanswered question.
-  const pitchWeight = PITCH_WEIGHT * (nameable.length / total)
-  const extraPenalty = Math.min(0.25, (extraNotes / total) * 0.5)
-  const judged =
-    (pitchAccuracy * pitchWeight + timingAccuracy * TIMING_WEIGHT) / (pitchWeight + TIMING_WEIGHT)
-  const overall = Math.max(0, Math.round((judged - extraPenalty) * 100))
-
   return {
-    pitchAccuracy,
-    timingAccuracy,
+    timingAccuracy: inTime.length / total,
     meanTimingErrorMs,
     timingSpreadMs: Math.sqrt(variance),
-    extraNotes,
-    missedNotes: targeted.filter((judgment) => judgment.verdict === 'missed').length,
-    wrongPitchNotes: targeted.filter((judgment) => judgment.verdict === 'wrong-pitch').length,
-    unnamedNotes: targeted.length - nameable.length,
-    totalTargets: targeted.length,
-    overall,
   }
+}
+
+/**
+ * Pitch is weighted above timing because playing the wrong note is a different
+ * kind of mistake from playing the right note slightly late.
+ *
+ * `nameableShare` is how much of the take the app could actually read, and
+ * pitch carries only that much of the score: a take it could name nothing in
+ * is scored on its timing rather than on an accuracy figure standing in for an
+ * unanswered question.
+ */
+function blend(pitchAccuracy: number, timingAccuracy: number, nameableShare: number): number {
+  const pitchWeight = PITCH_WEIGHT * nameableShare
+  return (
+    (pitchAccuracy * pitchWeight + timingAccuracy * TIMING_WEIGHT) / (pitchWeight + TIMING_WEIGHT)
+  )
 }
 
 /**

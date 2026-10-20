@@ -1,7 +1,7 @@
 import type { BeatEvent, OnsetEvent, PitchFrame } from '../audio/contracts'
 
 import type { AudioInput, TimeKeeper, TimeKeeperFactory } from '../audio/contracts'
-import { countInBeatsOf } from '../music/meter'
+import { countInBeatsOf, isTimed } from '../music/meter'
 import type { Exercise, TargetNote } from '../music/types'
 import {
   judgePerformance,
@@ -9,6 +9,7 @@ import {
   type NoteJudgment,
   type PerformanceScore,
   type PlayedNote,
+  type TakeClock,
 } from './judge'
 import { PitchTracker } from './PitchTracker'
 import { shuffleTargets } from './promptOrder'
@@ -311,12 +312,13 @@ export class PracticeSession {
     // and AudioEngine.now() returns 0 once its context is gone.
     this.resolvePendingOnsets(Number.POSITIVE_INFINITY)
 
-    const judgments = judgePerformance(this.targets, this.played, this.bpm)
+    const clock: TakeClock = isTimed(exercise) ? 'timed' : 'untimed'
+    const judgments = judgePerformance(this.targets, this.played, this.bpm, clock)
     const result: SessionResult = {
       exerciseId: exercise.id,
       bpm: this.bpm,
       judgments,
-      score: scorePerformance(judgments),
+      score: scorePerformance(judgments, clock),
       durationSeconds: Math.max(0, this.input.now() - this.startedAt),
       abandoned: this.abandoned,
     }

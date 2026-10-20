@@ -109,7 +109,9 @@ export interface AttemptInput {
 
 function buildAttempt(input: AttemptInput, stars: Star, unplayed: boolean): Attempt {
   const selfEstimate = input.selfEstimate ?? null
-  const guessWorthScoring = selfEstimate !== null && !unplayed
+  // A guess can only be marked against a measurement, and an unplayed take has
+  // none worth marking against.
+  const measured = unplayed ? null : actualTiming(input.score)
   return {
     exerciseId: input.exercise.id,
     completedAt: input.now.toISOString(),
@@ -121,7 +123,7 @@ function buildAttempt(input: AttemptInput, stars: Star, unplayed: boolean): Atte
     abandoned: input.abandoned ?? false,
     isProbe: input.isProbe ?? false,
     selfEstimate,
-    estimateWasRight: guessWorthScoring ? selfEstimate === actualTiming(input.score) : null,
+    estimateWasRight: selfEstimate !== null && measured !== null ? selfEstimate === measured : null,
   }
 }
 
@@ -196,10 +198,12 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
  * What the measurement says, in the same three buckets the learner chose from.
  * The threshold is the point at which a player can perceive their own error.
  */
-export function actualTiming(score: PerformanceScore): SelfEstimate {
+export function actualTiming(score: PerformanceScore): SelfEstimate | null {
   const PERCEPTIBLE_MS = 25
-  if (score.meanTimingErrorMs > PERCEPTIBLE_MS) return 'behind'
-  if (score.meanTimingErrorMs < -PERCEPTIBLE_MS) return 'ahead'
+  const { meanTimingErrorMs } = score
+  if (meanTimingErrorMs === null) return null
+  if (meanTimingErrorMs > PERCEPTIBLE_MS) return 'behind'
+  if (meanTimingErrorMs < -PERCEPTIBLE_MS) return 'ahead'
   return 'on-it'
 }
 
