@@ -70,6 +70,8 @@ export interface Exercise {
   notes: TargetNote[]
   /** Repeat the note list this many times within one take. */
   repeats?: number
+  /** Ask for the notes in a fresh order each take, so the order cannot be learned. */
+  shuffleEachTake?: boolean
   keyCenter?: string
   /** Technique reminders listed beside the exercise. */
   tips?: string[]

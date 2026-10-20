@@ -1,6 +1,8 @@
 import type { Verdict } from '../../engine/judge'
 import type { Star } from '../../engine/tempoLadder'
 import { xpIntoLevel, levelFor } from '../../progress/gamification'
+import { isTimed } from '../../music/meter'
+import type { Exercise } from '../../music/types'
 
 /** Small shared readouts. Each pairs colour with a shape or a label (RC7). */
 
@@ -44,6 +46,15 @@ export function LevelBar({ xp }: { xp: number }) {
   )
 }
 
+/**
+ * How an exercise is listed where its tempo would otherwise go. A drill with no
+ * clock has no target tempo to reach, so naming one invites the learner to
+ * chase a number nothing about the drill measures.
+ */
+export function tempoText(exercise: Pick<Exercise, 'mode' | 'targetBpm'>): string {
+  return isTimed(exercise) ? `${exercise.targetBpm} bpm` : 'No clock'
+}
+
 const VERDICT_LABELS: Record<Verdict, string> = {
   perfect: 'on the beat',
   good: 'close',
@@ -55,11 +66,20 @@ const VERDICT_LABELS: Record<Verdict, string> = {
   extra: 'extra note',
 }
 
-export function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
+/**
+ * `perfect` means the right note at the right moment, and there is no moment to
+ * be right about in a drill with no clock.
+ */
+function labelFor(verdict: Verdict, timed: boolean): string {
+  if (verdict === 'perfect' && !timed) return 'right note'
+  return VERDICT_LABELS[verdict]
+}
+
+export function VerdictStrip({ verdicts, timed }: { verdicts: Verdict[]; timed: boolean }) {
   const counts = new Map<Verdict, number>()
   for (const verdict of verdicts) counts.set(verdict, (counts.get(verdict) ?? 0) + 1)
   const summary = [...counts.entries()]
-    .map(([verdict, count]) => `${count} ${VERDICT_LABELS[verdict]}`)
+    .map(([verdict, count]) => `${count} ${labelFor(verdict, timed)}`)
     .join(', ')
 
   return (
@@ -71,8 +91,8 @@ export function VerdictStrip({ verdicts }: { verdicts: Verdict[] }) {
             role="listitem"
             className="verdict-chip"
             data-verdict={verdict}
-            aria-label={`Note ${index + 1}: ${VERDICT_LABELS[verdict]}`}
-            title={`Note ${index + 1}: ${VERDICT_LABELS[verdict]}`}
+            aria-label={`Note ${index + 1}: ${labelFor(verdict, timed)}`}
+            title={`Note ${index + 1}: ${labelFor(verdict, timed)}`}
           />
         ))}
       </div>

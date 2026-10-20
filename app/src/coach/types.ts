@@ -1,4 +1,5 @@
 import type { DetectionDetail, PerformanceScore, Verdict } from '../engine/judge'
+import type { PracticeMode } from '../music/types'
 
 /**
  * The boundary between the app and whatever is giving feedback.
@@ -10,7 +11,7 @@ import type { DetectionDetail, PerformanceScore, Verdict } from '../engine/judge
  */
 
 /** Bumped whenever the telemetry shape changes. Stored with every record. */
-export const TELEMETRY_SCHEMA_VERSION = 3
+export const TELEMETRY_SCHEMA_VERSION = 4
 
 export interface NoteTelemetry {
   /** Index into the exercise's note list. */
@@ -46,6 +47,8 @@ export interface TakeTelemetry {
     id: string
     title: string
     skills: string[]
+    /** How the take was run. A call-and-response take was never played to a clock. */
+    mode: PracticeMode
     targetBpm: number
     timeSignature: [number, number]
     noteCount: number

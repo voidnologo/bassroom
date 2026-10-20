@@ -35,6 +35,7 @@ export function buildTelemetry(input: TelemetryInput): TakeTelemetry {
       id: exercise.id,
       title: exercise.title,
       skills: [...exercise.skills],
+      mode: exercise.mode,
       targetBpm: exercise.targetBpm,
       timeSignature: exercise.timeSignature as unknown as [number, number],
       noteCount: exercise.notes.length,

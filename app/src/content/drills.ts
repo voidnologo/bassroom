@@ -18,12 +18,13 @@ export const DRILLS: Exercise[] = [
     id: 'open-string-find',
     title: 'Find each string',
     instructions:
-      'A string is named on screen. Pluck it. No clock, no pressure — take as long as you need.',
+      'A string is named on screen. Pluck it. The order changes every take, so there is no sequence to memorise. No clock — take as long as you need.',
     mode: 'call-response',
     skills: ['plucking-open', 'tuning'],
     notes: prompts(
       ['E0', 'A0', 'D0', 'G0', 'A0', 'E0', 'G0', 'D0'].map((spec) => note(spec, 0, 1)),
     ),
+    shuffleEachTake: true,
     targetBpm: 60,
     tips: [
       'The pickup is the bar sitting under the strings that senses them. Resting a thumb on it steadies the hand but damps nothing, so rest the thumb on the E string instead: that is what keeps it quiet while you play the others.',

@@ -85,3 +85,15 @@ export function musicEndBeat(notes: readonly TargetNote[]): number {
 export function countInBeatsOf(exercise: Pick<Exercise, 'countInBars' | 'timeSignature'>): number {
   return exercise.countInBars * exercise.timeSignature[0]
 }
+
+/**
+ * Whether a take is played against a clock at all.
+ *
+ * Call and response starts no metronome and waits for a pitch, so its notes are
+ * recorded at the beat they were asked for. Every timing figure for such a take
+ * is therefore a restatement of how it was recorded, not something the learner
+ * did, and nothing may display one or grade on one.
+ */
+export function isTimed(exercise: Pick<Exercise, 'mode'>): boolean {
+  return exercise.mode !== 'call-response'
+}

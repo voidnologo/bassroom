@@ -35,6 +35,18 @@ const openStrings: Exercise = exercise({
   floorBpm: 50,
 })
 
+/** No clock: its notes are recorded at the beat they were asked for. */
+const findEachString: Exercise = exercise({
+  id: 'test-find-strings',
+  title: 'Find each string',
+  instructions: 'A string is named on screen. Pluck it.',
+  mode: 'call-response',
+  skills: ['plucking-open'],
+  notes: ['E0', 'A0', 'D0', 'G0'].map((spec, index) => note(spec, index, 1)),
+  targetBpm: 60,
+  floorBpm: 40,
+})
+
 function played(beat: number, midi: number | null, extras: Partial<PlayedNote> = {}): PlayedNote {
   return { beat, midi, cents: 0, level: 0.5, ...extras }
 }
@@ -383,5 +395,52 @@ describe('advice about notes that did not sound', () => {
     const feedback = await coach.analyze(request([played(0, parseNote('A3'))]))
     const observation = feedback.observations.find((item) => item.id === 'missed-notes')
     expect(observation?.evidence).toMatch(/fret/i)
+  })
+})
+
+/**
+ * A call-and-response take has no clock. Its timing figures restate how it was
+ * recorded, so anything the coach says about them is a claim about nothing.
+ */
+describe('the coach on a take with no clock', () => {
+  function takeOf(playedNotes: PlayedNote[]): CoachRequest {
+    return requestFor(findEachString, playedNotes, 40)
+  }
+
+  const everyStringLate = findEachString.notes.map((target, index) =>
+    played(index + 0.4, target.midi),
+  )
+
+  it('says nothing about timing however far from the beat the notes were recorded', async () => {
+    const feedback = await new HeuristicCoach().analyze(takeOf(everyStringLate))
+    const said = [feedback.headline, ...feedback.observations.map((o) => o.statement)].join(' ')
+    expect(said).not.toMatch(/beat|timing|steady|evenly spaced|behind|ahead of/i)
+  })
+
+  it('still names a string an octave out, which is what the drill is for', async () => {
+    const octaveOut = findEachString.notes.map((target, index) =>
+      played(index, index === 1 ? target.midi + 12 : target.midi),
+    )
+    const feedback = await new HeuristicCoach().analyze(takeOf(octaveOut))
+    expect(feedback.observations.map((observation) => observation.id)).toContain('wrong-octave')
+  })
+
+  it('never offers a tempo to move to, because there is none', async () => {
+    const clean = findEachString.notes.map((target, index) => played(index, target.midi))
+    const feedback = await new HeuristicCoach().analyze(takeOf(clean))
+    expect(feedback.nextAction.bpm).toBeUndefined()
+    expect(['speed-up', 'slow-down']).not.toContain(feedback.nextAction.kind)
+    expect(feedback.nextAction.detail).not.toMatch(/bpm|tempo/i)
+  })
+
+  it('does not tell a struggling learner to drop a tempo they never set', async () => {
+    const mostlyMissed = [played(0, findEachString.notes[0].midi)]
+    const feedback = await new HeuristicCoach().analyze(takeOf(mostlyMissed))
+    expect(feedback.nextAction.kind).toBe('repeat')
+    expect(feedback.nextAction.detail).not.toMatch(/bpm|tempo/i)
+  })
+
+  it('records the mode, so a model-backed coach can see there was no clock', () => {
+    expect(takeOf([]).telemetry.exercise.mode).toBe('call-response')
   })
 })

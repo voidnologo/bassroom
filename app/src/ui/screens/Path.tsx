@@ -1,7 +1,7 @@
 import { LESSONS, UNITS, exerciseById, lessonById } from '../../content/curriculum'
 import type { Lesson } from '../../music/types'
 import { useProgressStore } from '../../state/progressStore'
-import { Meter, Pill, Stars } from '../components/Indicators'
+import { Meter, Pill, Stars, tempoText } from '../components/Indicators'
 import type { Navigate } from '../navigation'
 
 /** The whole curriculum, in order, with what is open and what is not. */
@@ -114,8 +114,7 @@ function LessonCard({
                   <span className="stack" style={{ gap: 2 }}>
                     <span>{exercise.title}</span>
                     <span className="tiny faint">
-                      {exercise.mode === 'call-response' ? 'No clock' : `${exercise.targetBpm} bpm`}{' '}
-                      · {exercise.skills.join(', ')}
+                      {tempoText(exercise)} · {exercise.skills.join(', ')}
                     </span>
                   </span>
                   <Stars value={starsOf(id) as 0 | 1 | 2 | 3} label={false} />

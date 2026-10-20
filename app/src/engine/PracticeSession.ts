@@ -11,6 +11,7 @@ import {
   type PlayedNote,
 } from './judge'
 import { PitchTracker } from './PitchTracker'
+import { shuffleTargets } from './promptOrder'
 
 /**
  * Runs one take.
@@ -58,6 +59,8 @@ export interface PracticeSessionOptions {
   tailBeats?: number
   /** Seconds to wait after the last beat for pending onsets to resolve. */
   settleSeconds?: number
+  /** Source of randomness for a drill that reshuffles its prompts each take. */
+  random?: () => number
 }
 
 const DEFAULT_TAIL_BEATS = 2
@@ -73,6 +76,7 @@ export class PracticeSession {
   private readonly latencyMs: number
   private readonly tailBeats: number
   private readonly settleSeconds: number
+  private readonly random: () => number
 
   private readonly tracker = new PitchTracker()
   private timeKeeper: TimeKeeper | null = null
@@ -97,6 +101,7 @@ export class PracticeSession {
     this.latencyMs = options.latencyMs ?? 0
     this.tailBeats = options.tailBeats ?? DEFAULT_TAIL_BEATS
     this.settleSeconds = options.settleSeconds ?? DEFAULT_SETTLE_SECONDS
+    this.random = options.random ?? Math.random
   }
 
   get currentPhase(): SessionPhase {
@@ -105,6 +110,16 @@ export class PracticeSession {
 
   get currentPromptIndex(): number {
     return this.promptIndex
+  }
+
+  /**
+   * The notes this take is asking for, in the order it will ask for them.
+   *
+   * A reshuffling drill has an order the exercise does not record, and the
+   * screen draws from this so that what it shows is what is being asked.
+   */
+  get currentTargets(): TargetNote[] {
+    return this.targets
   }
 
   /** Null until a take with a clock is running. */
@@ -116,7 +131,7 @@ export class PracticeSession {
     this.teardown()
     this.exercise = exercise
     this.bpm = bpm
-    this.targets = expandRepeats(exercise)
+    this.targets = orderFor(exercise, this.random)
     this.played = []
     this.pendingOnsets = []
     this.promptIndex = 0
@@ -316,6 +331,11 @@ export class PracticeSession {
     this.phase = phase
     this.callbacks.onPhase?.(phase)
   }
+}
+
+function orderFor(exercise: Exercise, random: () => number): TargetNote[] {
+  const written = expandRepeats(exercise)
+  return exercise.shuffleEachTake ? shuffleTargets(written, random) : written
 }
 
 /** Expand an exercise's repeats into one flat, absolute-beat note list. */
