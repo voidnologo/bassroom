@@ -43,8 +43,6 @@ const findEachString: Exercise = exercise({
   mode: 'call-response',
   skills: ['plucking-open'],
   notes: ['E0', 'A0', 'D0', 'G0'].map((spec, index) => note(spec, index, 1)),
-  targetBpm: 60,
-  floorBpm: 40,
 })
 
 function played(beat: number, midi: number | null, extras: Partial<PlayedNote> = {}): PlayedNote {

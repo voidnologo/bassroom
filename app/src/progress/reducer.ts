@@ -63,7 +63,7 @@ export function createExerciseProgress(exercise: Exercise, now: Date): ExerciseP
     bestStars: 0,
     bestScore: 0,
     bestBpm: 0,
-    ladder: createLadder(exercise.targetBpm, exercise.floorBpm),
+    ladder: isTimed(exercise) ? createLadder(exercise.targetBpm, exercise.floorBpm) : null,
     review: createReviewState(now),
     lastPracticedAt: null,
   }
@@ -83,13 +83,14 @@ export interface AttemptResult {
   stars: Star
   xp: XpBreakdown
   newBadges: BadgeId[]
-  ladder: LadderOutcome
+  /** Null for an exercise with no ladder, which has nothing to report about one. */
+  ladder: LadderOutcome | null
 }
 
 export interface AttemptInput {
   exercise: Exercise
   score: PerformanceScore
-  bpm: number
+  bpm: number | null
   durationSeconds: number
   /** Exercise ids that count as scale drills, for the scale badge. */
   scaleExerciseIds: string[]
@@ -116,7 +117,7 @@ function buildAttempt(input: AttemptInput, stars: Star, unplayed: boolean): Atte
     exerciseId: input.exercise.id,
     completedAt: input.now.toISOString(),
     bpm: input.bpm,
-    targetBpm: input.exercise.targetBpm,
+    targetBpm: isTimed(input.exercise) ? input.exercise.targetBpm : null,
     score: input.score,
     stars,
     durationSeconds: input.durationSeconds,
@@ -141,14 +142,14 @@ export function applyAttempt(snapshot: ProgressSnapshot, input: AttemptInput): A
   const attempt = buildAttempt(input, stars, unplayed)
 
   const previous = progressFor(snapshot, exercise, now)
-  const ladder = ladderAfter(exercise, previous, score, discounted)
+  const ladder = ladderAfter(previous, score, discounted)
   const updatedExercise: ExerciseProgress = {
     ...previous,
     attempts: previous.attempts + 1,
     bestStars: Math.max(previous.bestStars, stars) as Star,
     bestScore: Math.max(previous.bestScore, score.overall),
-    bestBpm: Math.max(previous.bestBpm, bpm),
-    ladder: ladder.next,
+    bestBpm: Math.max(previous.bestBpm, bpm ?? 0),
+    ladder: ladder?.next ?? null,
     review: discounted ? previous.review : scheduleNextReview(previous.review, stars, now),
     lastPracticedAt: attempt.completedAt,
   }
@@ -217,23 +218,20 @@ const NO_XP: XpBreakdown = {
 }
 
 /**
- * An abandoned take, and a take with no clock, leave the ladder where it is. The ladder trades
- * accuracy for tempo, and an untimed drill has no tempo to trade for, so
- * walking it would move a number nothing about the drill depends on.
+ * The ladder trades accuracy for tempo. An exercise with no tempo has none to
+ * trade for and carries no ladder at all, and an abandoned take is no evidence
+ * to move one with, so both leave this with nothing to report.
  */
 function ladderAfter(
-  exercise: Exercise,
   previous: ExerciseProgress,
   score: PerformanceScore,
   discounted: boolean,
-): LadderOutcome {
-  if (discounted) return holdLadder(previous, 'Stopped early. Nothing recorded against this one.')
-  if (!isTimed(exercise)) return holdLadder(previous, 'Notes counted.')
-  return advanceLadder(previous.ladder, score)
-}
-
-function holdLadder(previous: ExerciseProgress, message: string): LadderOutcome {
-  return { next: previous.ladder, message }
+): LadderOutcome | null {
+  const ladder = previous.ladder
+  if (ladder === null) return null
+  if (discounted)
+    return { next: ladder, message: 'Stopped early. Nothing recorded against this one.' }
+  return advanceLadder(ladder, score)
 }
 
 function gapBeforeToday(profile: LearnerProfile, now: Date): number | null {

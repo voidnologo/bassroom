@@ -3,7 +3,7 @@ import { ALL_EXERCISES, exerciseById } from '../../content/curriculum'
 import { describePosition, preferredPosition, type Position } from '../../music/fretboard'
 import { countInBeatsOf, isTimed, musicEndBeat } from '../../music/meter'
 import { noteName } from '../../music/notes'
-import type { Exercise, TargetNote } from '../../music/types'
+import type { Exercise, TargetNote, TimedExercise } from '../../music/types'
 import type { NextAction } from '../../coach/types'
 import type { PerformanceScore, Verdict } from '../../engine/judge'
 import { nextRungBpm, starRequirementText, starsFor, type Star } from '../../engine/tempoLadder'
@@ -33,7 +33,7 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
   const { state: engineState } = useAudio()
 
   const progress = useMemo(() => progressFor(snapshot, exercise, new Date()), [snapshot, exercise])
-  const [bpm, setBpm] = useOverride(exercise.id, progress.ladder.currentBpm)
+  const [bpm, setBpm] = useOverride<number | null>(exercise.id, progress.ladder?.currentBpm ?? null)
 
   const [isProbe, setIsProbe] = useOverride(exercise.id, false)
 
@@ -46,10 +46,10 @@ export function Practice({ exerciseId, onNavigate }: { exerciseId: string; onNav
   if (!ready) return <NotListening state={engineState} onNavigate={onNavigate} />
 
   /** A speed-up with no tempo of its own takes the ladder's next rung. */
-  const tempoFor = (action: NextAction): number => {
+  const tempoFor = (action: NextAction): number | null => {
     if (action.bpm !== undefined) return action.bpm
-    if (action.kind === 'speed-up') return Math.min(exercise.targetBpm, nextRungBpm(bpm))
-    return bpm
+    if (action.kind !== 'speed-up' || !isTimed(exercise) || bpm === null) return bpm
+    return Math.min(exercise.targetBpm, nextRungBpm(bpm))
   }
 
   /** Only the kinds that mean "go again" start a take. */
@@ -133,9 +133,9 @@ interface StageProps {
   targets: TargetNote[]
   beatRef: React.MutableRefObject<number>
   verdictsRef: React.MutableRefObject<Map<number, Verdict>>
-  bpm: number
+  bpm: number | null
   onBpm: (bpm: number) => void
-  onStart: () => void
+  onStart: (atBpm?: number | null) => void
   onStop: () => void
   isProbe: boolean
   onProbe: (isProbe: boolean) => void
@@ -231,7 +231,7 @@ function TransportBar({
 
       {/* A drill the learner is never asked to play faster has no tempo to set,
           and a slider that changes nothing they are judged on is a wrong cue. */}
-      {isTimed(exercise) && (
+      {isTimed(exercise) && bpm !== null && (
         <TempoControl exercise={exercise} bpm={bpm} onBpm={onBpm} disabled={running} />
       )}
     </div>
@@ -244,7 +244,7 @@ function TempoControl({
   onBpm,
   disabled,
 }: {
-  exercise: Exercise
+  exercise: TimedExercise
   bpm: number
   onBpm: (bpm: number) => void
   disabled: boolean
@@ -375,7 +375,7 @@ function Result({
   attempt,
 }: {
   exercise: Exercise
-  bpm: number
+  bpm: number | null
   score: PerformanceScore
   verdicts: Verdict[]
   attempt: AttemptResult
@@ -413,7 +413,7 @@ function Result({
         guess={attempt.attempt.selfEstimate}
         wasRight={attempt.attempt.estimateWasRight}
       />
-      {timed && (
+      {attempt.ladder && (
         <p className="small muted" style={{ marginTop: 12 }}>
           {attempt.ladder.message}
         </p>

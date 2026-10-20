@@ -17,7 +17,7 @@ import { TELEMETRY_SCHEMA_VERSION, type NoteTelemetry, type TakeTelemetry } from
 export interface TelemetryInput {
   exercise: Exercise
   judgments: NoteJudgment[]
-  bpm: number
+  bpm: number | null
   latencyCorrectionMs: number
   learner: TakeTelemetry['learner']
   takeId: string
@@ -36,7 +36,7 @@ export function buildTelemetry(input: TelemetryInput): TakeTelemetry {
       title: exercise.title,
       skills: [...exercise.skills],
       mode: exercise.mode,
-      targetBpm: exercise.targetBpm,
+      targetBpm: isTimed(exercise) ? exercise.targetBpm : null,
       timeSignature: exercise.timeSignature as unknown as [number, number],
       noteCount: exercise.notes.length,
     },

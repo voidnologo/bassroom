@@ -31,7 +31,8 @@ export type SessionPhase = 'idle' | 'count-in' | 'playing' | 'judging' | 'finish
 
 export interface SessionResult {
   exerciseId: string
-  bpm: number
+  /** Null for a take with no clock, which was not played at a tempo. */
+  bpm: number | null
   judgments: NoteJudgment[]
   score: PerformanceScore
   durationSeconds: number
@@ -88,7 +89,7 @@ export class PracticeSession {
   private played: PlayedNote[] = []
   private targets: TargetNote[] = []
   private exercise: Exercise | null = null
-  private bpm = 60
+  private bpm: number | null = null
   private phase: SessionPhase = 'idle'
   private startedAt = 0
   private promptIndex = 0
@@ -128,7 +129,7 @@ export class PracticeSession {
     return this.timeKeeper
   }
 
-  start(exercise: Exercise, bpm: number): void {
+  start(exercise: Exercise, bpm: number | null): void {
     this.teardown()
     this.exercise = exercise
     this.bpm = bpm
@@ -152,6 +153,9 @@ export class PracticeSession {
       if (first) this.callbacks.onPrompt?.(first, 0)
       else this.finish()
       return
+    }
+    if (bpm === null) {
+      throw new Error(`Exercise ${exercise.id} is played to a clock, but no tempo was given.`)
     }
     this.startClock(exercise, bpm)
   }

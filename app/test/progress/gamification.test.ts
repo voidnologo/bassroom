@@ -283,6 +283,12 @@ describe('badges', () => {
     ).toContain('full-tempo')
   })
 
+  /** Null is not "slower than target": it is a take that had no target. */
+  it('does not award the tempo badge for a take with no tempo', () => {
+    const untimed = attempt({ bpm: null, targetBpm: null })
+    expect(newlyEarnedBadges(context({ history: [untimed] }))).not.toContain('full-tempo')
+  })
+
   it('awards the week badge at seven days', () => {
     const streak = { ...createStreak(), current: 7 }
     expect(newlyEarnedBadges(context({ profile: profile({ streak }) }))).toContain('week-streak')

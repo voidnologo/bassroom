@@ -51,7 +51,7 @@ export function LevelBar({ xp }: { xp: number }) {
  * clock has no target tempo to reach, so naming one invites the learner to
  * chase a number nothing about the drill measures.
  */
-export function tempoText(exercise: Pick<Exercise, 'mode' | 'targetBpm'>): string {
+export function tempoText(exercise: Exercise): string {
   return isTimed(exercise) ? `${exercise.targetBpm} bpm` : 'No clock'
 }
 

@@ -1,4 +1,4 @@
-import type { Exercise, TargetNote, TimeSignature } from './types'
+import type { Exercise, PracticeMode, TargetNote, TimeSignature } from './types'
 
 /**
  * Where a beat falls in the music when the meter changes partway through.
@@ -93,7 +93,13 @@ export function countInBeatsOf(exercise: Pick<Exercise, 'countInBars' | 'timeSig
  * recorded at the beat they were asked for. Every timing figure for such a take
  * is therefore a restatement of how it was recorded, not something the learner
  * did, and nothing may display one or grade on one.
+ *
+ * Narrows an `Exercise` to `TimedExercise`, which is where the tempos live.
+ * Also answers for the flatter shapes that carry a mode without being one,
+ * such as stored telemetry, where it returns the question and narrows nothing.
  */
-export function isTimed(exercise: Pick<Exercise, 'mode'>): boolean {
-  return exercise.mode !== 'call-response'
+export function isTimed<T extends { mode: PracticeMode }>(
+  subject: T,
+): subject is T & { mode: 'play-along' } {
+  return subject.mode !== 'call-response'
 }

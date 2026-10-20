@@ -11,7 +11,7 @@ import type { PracticeMode } from '../music/types'
  */
 
 /** Bumped whenever the telemetry shape changes. Stored with every record. */
-export const TELEMETRY_SCHEMA_VERSION = 5
+export const TELEMETRY_SCHEMA_VERSION = 6
 
 export interface NoteTelemetry {
   /** Index into the exercise's note list. */
@@ -49,11 +49,13 @@ export interface TakeTelemetry {
     skills: string[]
     /** How the take was run. A call-and-response take was never played to a clock. */
     mode: PracticeMode
-    targetBpm: number
+    /** Null for an exercise with no clock, which has no tempo to work up to. */
+    targetBpm: number | null
     timeSignature: [number, number]
     noteCount: number
   }
-  bpm: number
+  /** The tempo this take was played at, or null when it was played to no clock. */
+  bpm: number | null
   /** Latency correction applied to every onset in this take, in milliseconds. */
   latencyCorrectionMs: number
   score: PerformanceScore

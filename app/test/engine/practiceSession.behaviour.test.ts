@@ -302,6 +302,19 @@ describe('resource handling', () => {
 })
 
 describe('a call-and-response take', () => {
+  it('runs without being given a tempo, because it is not played at one', () => {
+    const h = harness()
+    h.session.start(callResponse, null)
+    expect(h.session.currentPhase).toBe('playing')
+  })
+
+  it('reports no tempo on its result', () => {
+    const h = harness()
+    h.session.start(callResponse, null)
+    h.session.stop()
+    expect(h.results[0].bpm).toBeNull()
+  })
+
   it('prompts the first note immediately and does not wait for a clock', () => {
     const h = harness()
     h.session.start(callResponse, 60)
@@ -367,5 +380,17 @@ describe('a call-and-response take', () => {
     const h = harness()
     h.session.start(empty, 60)
     expect(h.results).toHaveLength(1)
+  })
+})
+
+/**
+ * A take that is played to a clock cannot run without one. Nothing in the app
+ * should reach here, which is why it says what was missing rather than
+ * starting a metronome at some tempo nobody chose.
+ */
+describe('starting a timed exercise with no tempo', () => {
+  it('refuses, naming the exercise that needed one', () => {
+    const h = harness()
+    expect(() => h.session.start(fourNotes, null)).toThrow(/four-notes/)
   })
 })

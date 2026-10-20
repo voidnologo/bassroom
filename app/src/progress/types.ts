@@ -18,8 +18,9 @@ export interface Attempt {
   exerciseId: string
   /** ISO 8601, in the learner's local time zone. */
   completedAt: string
-  bpm: number
-  targetBpm: number
+  /** Null throughout: an exercise with no clock is not played at a tempo. */
+  bpm: number | null
+  targetBpm: number | null
   score: PerformanceScore
   stars: Star
   /** Seconds of actual playing, excluding the count-in. */
@@ -63,7 +64,8 @@ export interface ExerciseProgress {
   bestStars: Star
   bestScore: number
   bestBpm: number
-  ladder: LadderState
+  /** Null for an exercise with no tempo to climb towards. */
+  ladder: LadderState | null
   review: ReviewState
   lastPracticedAt: string | null
 }

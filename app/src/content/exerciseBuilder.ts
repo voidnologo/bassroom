@@ -1,5 +1,12 @@
 import type { MeterChange } from '../music/meter'
-import type { Exercise, PracticeMode, SkillId, TargetNote, TimeSignature } from '../music/types'
+import type {
+  Exercise,
+  SkillId,
+  TargetNote,
+  TimedExercise,
+  TimeSignature,
+  UntimedExercise,
+} from '../music/types'
 
 /**
  * Defaults for exercise content, so each exercise states only what is unusual
@@ -10,17 +17,14 @@ import type { Exercise, PracticeMode, SkillId, TargetNote, TimeSignature } from 
 
 const FOUR_FOUR: TimeSignature = [4, 4]
 
-export interface ExerciseInput {
+interface ExerciseInputBase {
   id: string
   title: string
   instructions: string
   skills: SkillId[]
   notes: TargetNote[]
-  mode?: PracticeMode
   timeSignature?: TimeSignature
   meterChanges?: MeterChange[]
-  targetBpm?: number
-  floorBpm?: number
   countInBars?: number
   repeats?: number
   shuffleEachTake?: boolean
@@ -28,13 +32,32 @@ export interface ExerciseInput {
   tips?: string[]
 }
 
+/**
+ * The tempos belong to the play-along case only. Writing one on a drill with
+ * no clock is a mistake the author should be told about rather than a number
+ * that is quietly stored and never read.
+ */
+type TimedInput = ExerciseInputBase & {
+  mode?: 'play-along'
+  targetBpm?: number
+  floorBpm?: number
+}
+type UntimedInput = ExerciseInputBase & { mode: 'call-response' }
+
+export type ExerciseInput = TimedInput | UntimedInput
+
+const DEFAULT_TARGET_BPM = 80
+
+export function exercise(input: TimedInput): TimedExercise
+export function exercise(input: UntimedInput): UntimedExercise
 export function exercise(input: ExerciseInput): Exercise {
-  const targetBpm = input.targetBpm ?? 80
+  const shared = { timeSignature: FOUR_FOUR, countInBars: 1, ...input }
+  if (input.mode === 'call-response') return { ...shared, mode: 'call-response' }
+
+  const targetBpm = input.targetBpm ?? DEFAULT_TARGET_BPM
   return {
+    ...shared,
     mode: 'play-along',
-    timeSignature: FOUR_FOUR,
-    countInBars: 1,
-    ...input,
     targetBpm,
     // A floor at 55% of target is slow enough that almost any passage can be
     // played accurately, which is the whole premise of the tempo ladder.
