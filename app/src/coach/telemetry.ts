@@ -1,6 +1,6 @@
 import type { NoteJudgment } from '../engine/judge'
 import { scorePerformance } from '../engine/judge'
-import { barPositionAt } from '../music/meter'
+import { barPositionAt, isTimed } from '../music/meter'
 import { centsFromNearestNote, midiToFrequency, shiftByCents } from '../music/notes'
 import type { Exercise } from '../music/types'
 import { TELEMETRY_SCHEMA_VERSION, type NoteTelemetry, type TakeTelemetry } from './types'
@@ -42,7 +42,7 @@ export function buildTelemetry(input: TelemetryInput): TakeTelemetry {
     },
     bpm,
     latencyCorrectionMs: input.latencyCorrectionMs,
-    score: scorePerformance(judgments),
+    score: scorePerformance(judgments, isTimed(exercise) ? 'timed' : 'untimed'),
     notes: judgments.map((judgment, index) => toNoteTelemetry(judgment, index, exercise)),
     learner: input.learner,
   }

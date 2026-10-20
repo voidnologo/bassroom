@@ -78,8 +78,9 @@ export class HeuristicCoach implements CoachProvider {
 // --- rules -----------------------------------------------------------------
 
 function dragOrRush({ telemetry }: CoachRequest): Observation | null {
-  if (!isTimed(telemetry.exercise)) return null
   const { meanTimingErrorMs, timingSpreadMs } = telemetry.score
+  // Null throughout a take with no clock, which has no placement to comment on.
+  if (meanTimingErrorMs === null || timingSpreadMs === null) return null
   if (Math.abs(meanTimingErrorMs) < AUDIBLE_OFFSET_MS) return null
   // A large spread means the notes are scattered, not uniformly displaced, and
   // the steadiness rule is the one that should speak.
@@ -95,13 +96,13 @@ function dragOrRush({ telemetry }: CoachRequest): Observation | null {
 }
 
 function steadiness({ telemetry }: CoachRequest): Observation | null {
-  if (!isTimed(telemetry.exercise)) return null
-  if (telemetry.score.timingSpreadMs <= UNSTEADY_SPREAD_MS) return null
+  const { timingSpreadMs } = telemetry.score
+  if (timingSpreadMs === null || timingSpreadMs <= UNSTEADY_SPREAD_MS) return null
   return {
     id: 'timing-spread',
     severity: 'fix',
     statement: 'The notes are in roughly the right places but not evenly spaced.',
-    evidence: `Timing varies by ${Math.round(telemetry.score.timingSpreadMs)} ms from note to note.`,
+    evidence: `Timing varies by ${Math.round(timingSpreadMs)} ms from note to note.`,
   }
 }
 

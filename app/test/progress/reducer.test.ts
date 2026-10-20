@@ -373,6 +373,19 @@ describe('probes and self-estimation', () => {
     expect(applyAttempt(createSnapshot(DAY_ONE), input()).attempt.estimateWasRight).toBeNull()
   })
 
+  it('names no timing bucket for a take that was never timed', () => {
+    expect(actualTiming(score(70, { meanTimingErrorMs: null }))).toBeNull()
+  })
+
+  it('marks no estimate right or wrong against a take that was never timed', () => {
+    const untimed = score(80, { meanTimingErrorMs: null })
+    const result = applyAttempt(
+      createSnapshot(DAY_ONE),
+      input({ score: untimed, selfEstimate: 'on-it' }),
+    )
+    expect(result.attempt.estimateWasRight).toBeNull()
+  })
+
   it('withholds an estimate-accuracy figure until there is enough to report', () => {
     const snapshot = run([{ selfEstimate: 'on-it' }, { selfEstimate: 'on-it' }])
     expect(selfEstimateAccuracy(snapshot.history)).toBeNull()

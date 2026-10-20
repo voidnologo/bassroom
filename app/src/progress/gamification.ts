@@ -266,6 +266,7 @@ const RULES: Record<BadgeId, BadgeRule> = {
       (item) =>
         item.score.totalTargets - item.score.missedNotes >= 8 &&
         item.score.overall >= 70 &&
+        item.score.timingSpreadMs !== null &&
         item.score.timingSpreadMs < 30,
     ),
   'thousand-notes': (context) => context.notesPlayed >= 1000,

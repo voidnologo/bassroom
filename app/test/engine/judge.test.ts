@@ -219,7 +219,8 @@ describe('scorePerformance', () => {
         60,
       ),
     )
-    expect(uniform.timingSpreadMs).toBeLessThan(scattered.timingSpreadMs)
+    expect(scattered.timingSpreadMs).not.toBeNull()
+    expect(uniform.timingSpreadMs!).toBeLessThan(scattered.timingSpreadMs!)
   })
 
   it('counts each failure kind separately', () => {
@@ -302,5 +303,70 @@ describe('scoring a pluck the app could not name', () => {
     const score = scorePerformance(noneNamed)
     expect(score.timingAccuracy).toBe(1)
     expect(score.overall).toBe(100)
+  })
+})
+
+/**
+ * A call-and-response take has no metronome. It waits for the right pitch and
+ * records each note at the beat it was asked for, so its timing figures would
+ * describe how the take was stored rather than how it was played.
+ */
+describe('judging a take with no clock', () => {
+  /** Far enough out to be "late" in a timed take, close enough to still match. */
+  const DRAGGED_BEATS = 0.3
+
+  function untimed(played: PlayedNote[]) {
+    return scorePerformance(judgePerformance(FOUR_QUARTERS, played, 60, 'untimed'), 'untimed')
+  }
+
+  const everyNoteRight = [played(0), played(1), played(2), played(3)]
+  const everyNoteRightButDragged = everyNoteRight.map((note) => ({
+    ...note,
+    beat: note.beat + DRAGGED_BEATS,
+  }))
+
+  it('reports no timing figures at all, rather than zeroes that read as measurements', () => {
+    const score = untimed(everyNoteRight)
+    expect(score.timingAccuracy).toBeNull()
+    expect(score.meanTimingErrorMs).toBeNull()
+    expect(score.timingSpreadMs).toBeNull()
+  })
+
+  it('leaves each judgment without a timing claim', () => {
+    const judgments = judgePerformance(FOUR_QUARTERS, everyNoteRightButDragged, 60, 'untimed')
+    expect(judgments.map((judgment) => judgment.timingErrorMs)).toEqual([null, null, null, null])
+    expect(judgments.map((judgment) => judgment.inTime)).toEqual([null, null, null, null])
+  })
+
+  it('calls a right note right however far from the beat it was recorded', () => {
+    const judgments = judgePerformance(FOUR_QUARTERS, everyNoteRightButDragged, 60, 'untimed')
+    expect(judgments.map((judgment) => judgment.verdict)).toEqual([
+      'perfect',
+      'perfect',
+      'perfect',
+      'perfect',
+    ])
+  })
+
+  it('scores the same take the same wherever its notes were recorded', () => {
+    expect(untimed(everyNoteRightButDragged).overall).toBe(untimed(everyNoteRight).overall)
+  })
+
+  it('scores on the notes alone, with no timing term diluting it', () => {
+    const halfRight = [played(0), played(1), played(2, D2), played(3, D2)]
+    expect(untimed(halfRight).pitchAccuracy).toBe(0.5)
+    expect(untimed(halfRight).overall).toBe(50)
+  })
+
+  it('still counts a note that was never played against the take', () => {
+    expect(untimed([played(0), played(1)]).overall).toBe(50)
+    expect(untimed([]).overall).toBe(0)
+  })
+
+  /** The same notes, judged against a clock, are a different and worse take. */
+  it('scores a dragged take below what the clock would have made of it', () => {
+    const timed = scorePerformance(judgePerformance(FOUR_QUARTERS, everyNoteRightButDragged, 60))
+    expect(timed.overall).toBeLessThan(untimed(everyNoteRightButDragged).overall)
+    expect(timed.timingAccuracy).toBe(0)
   })
 })

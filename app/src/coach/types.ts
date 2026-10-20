@@ -11,7 +11,7 @@ import type { PracticeMode } from '../music/types'
  */
 
 /** Bumped whenever the telemetry shape changes. Stored with every record. */
-export const TELEMETRY_SCHEMA_VERSION = 4
+export const TELEMETRY_SCHEMA_VERSION = 5
 
 export interface NoteTelemetry {
   /** Index into the exercise's note list. */

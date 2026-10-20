@@ -325,6 +325,14 @@ describe('badges', () => {
     expect(newlyEarnedBadges(context({ history: [tiny] }))).not.toContain('metronome-steady')
   })
 
+  /** A null spread is no spread at all, and reads as zero if it is not checked. */
+  it('does not award steadiness from a take nothing timed', () => {
+    const untimed = attempt({
+      score: { ...attempt().score, timingSpreadMs: null, totalTargets: 16 },
+    })
+    expect(newlyEarnedBadges(context({ history: [untimed] }))).not.toContain('metronome-steady')
+  })
+
   it('awards the song badges for mastering the full versions', () => {
     const done = context({
       masteredExerciseIds: new Set(['song-angel-full', 'song-this-is-the-christ-full']),
